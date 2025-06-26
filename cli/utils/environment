@@ -1,0 +1,30 @@
+source "$(dirname "${BASH_SOURCE[0]}")/repo"
+
+load_env() {
+    if [[ "$ENV_LOADED" == "true" ]]; then return 0; fi
+
+    cd app || return 1
+    local app_account=$(get_github_account)
+    local app_repo=$(get_github_repo)
+    cd .. || return 1
+
+    if [[ -z "$app_account" ]] || [[ -z "$app_repo" ]]; then
+        echo "Error: Unable to determine application GitHub namespace."
+        return 1
+    fi
+
+    local cicd_account=$(get_github_account)
+    local cicd_repo=$(get_github_repo)
+
+    if [[ -z "$cicd_account" ]] || [[ -z "$cicd_repo" ]]; then
+        echo "Error: Unable to determine CI/CD GitHub namespace."
+        return 1
+    fi
+
+    FOLIO_APP_ACCOUNT="${FOLIO_APP_ACCOUNT:-$app_account}"
+    FOLIO_APP_REPO="${FOLIO_APP_REPO:-$app_repo}"
+    FOLIO_CICD_ACCOUNT="${FOLIO_CICD_ACCOUNT:-$cicd_account}"
+    FOLIO_CICD_REPO="${FOLIO_CICD_REPO:-$cicd_repo}"
+
+    ENV_LOADED=true
+}
