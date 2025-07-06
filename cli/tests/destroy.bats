@@ -20,6 +20,11 @@ setup() {
         fi
     }
 
+    get_version() {
+        log_mock_call version "$@"
+        echo "1.2.3"
+    }
+
     mock load_env
 
     FOLIO_CICD_ACCOUNT="cicd-account"
@@ -275,6 +280,7 @@ teardown() {
         -out=tfplan \
         -var "environment=production" \
         -var "app_package=cicd-repo" \
+        -var "app_version=1.2.3" \
         -var "namespace=cicd-account" \
         -var "domain=example.com" \
         -var "dns_zone=abc123" \
@@ -302,6 +308,7 @@ teardown() {
         -out=tfplan \
         -var "environment=production" \
         -var "app_package=cicd-repo" \
+        -var "app_version=1.2.3" \
         -var "namespace=cicd-account" \
         -var "domain=example.test" \
         -var "dns_zone=123abc" \
@@ -321,6 +328,7 @@ teardown() {
         -out=tfplan \
         -var "environment=staging" \
         -var "app_package=cicd-repo" \
+        -var "app_version=1.2.3" \
         -var "namespace=cicd-account" \
         -var "domain=example.com" \
         -var "dns_zone=abc123" \
