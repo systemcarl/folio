@@ -212,3 +212,16 @@ The configured *GitHub* API token must have the scopes:
 - `commit_status:read`,
 - `commit_status:write`,
 - `contents:read`
+
+#### Process Status
+The `deploy` command will automatically set the commit statuses of the `blank`
+application and the `folio` CI/CD pipeline when given the `--set-status` option.
+```
+deploy --set-status
+```
+
+If the status is already set, the command will not run again with
+`--set-status`. To force a command to run set, the `--force` option can be used.
+```bash
+deploy --set-status --force
+```
