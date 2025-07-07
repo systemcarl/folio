@@ -191,9 +191,9 @@ test --terraform
 ### Code Status
 The commit status of both the *Blank* application and the `folio` CI/CD pipeline
 can be retrieved from *GitHub*. By default, the `status` script retrieves the
-status of the *Blank* application's current head of the main branch.
-Alternatively, a branch, tag, or commit SHA as an argument to the script. To
-target the `folio` CI/CD pipeline, the `--self` option can be used.
+current version of the *Blank* application. Alternatively, a branch, tag, or
+commit SHA as an argument to the script. To target the `folio` CI/CD pipeline,
+the `--self` option can be used.
 ```bash
 status [<application_commit>]
 status --self [<pipeline_commit>]
