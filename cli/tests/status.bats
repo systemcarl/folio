@@ -188,6 +188,17 @@ teardown() {
         'context' 'ci/cicd-repo'
 }
 
+@test "finds contextual commit status in response" {
+    FOLIO_CICD_REPO="test-repo"
+    set_mock_state get_response \
+        '[{"context": "ci/test-repo", "state": "value"}]'
+    run status
+    assert_success
+    assert_mock_called_once find_json -l \
+        '[{"context": "ci/test-repo", "state": "value"}]' \
+        'context' 'ci/test-repo'
+}
+
 @test "defaults to 'none' state when no status found" {
     set_mock_state find_context_result ""
     run status
@@ -323,6 +334,19 @@ teardown() {
     assert_success
     assert_mock_called_once curl -s -X POST \
         -H "Authorization: Bearer 456def"
+}
+
+@test "sets status with context" {
+    run status set value --context "ci/test-repo"
+    assert_success
+    assert_mock_called_once curl -s -X POST \
+        -H "Accept: application/vnd.github.v3+json" \
+        "$GITHUB/repos/app-account/app-repo/statuses/abcd1234" \
+        -d '{
+            "state": "value",
+            "context": "ci/test-repo",
+            "description": "Automated validation by cicd-repo CI."
+        }'
 }
 
 @test "sets status with description" {
