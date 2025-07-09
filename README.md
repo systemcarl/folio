@@ -219,6 +219,7 @@ application and the `folio` CI/CD pipeline when given the `--set-status` option.
 ```
 deploy --set-status
 validate --set-status
+test --set-status
 ```
 
 If the status is already set, the command will not run again with
@@ -226,4 +227,5 @@ If the status is already set, the command will not run again with
 ```bash
 deploy --set-status --force
 validate --set-status --force
+test --set-status --force
 ```
