@@ -295,6 +295,7 @@ teardown() {
 @test "creates Terraform destroy plan from options" {
     setup_remote_env
     run destroy <<< "y" \
+        --environment "test" \
         --domain "example.test" \
         --dns-zone 123abc \
         --ssh-port 2222 \
@@ -306,7 +307,7 @@ teardown() {
     assert_success
     assert_mock_called_once terraform -chdir=infra plan -destroy \
         -out=tfplan \
-        -var "environment=production" \
+        -var "environment=test" \
         -var "app_package=cicd-repo" \
         -var "app_version=1.2.3" \
         -var "namespace=cicd-account" \
