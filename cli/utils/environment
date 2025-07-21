@@ -4,7 +4,7 @@ load_env() {
     if [[ "$ENV_LOADED" == "true" ]]; then return 0; fi
 
     local ENV_FILE="$(dirname "${BASH_SOURCE[0]}")/../../.env"
-    while [[ "$1" != "" ]]; do
+    while [[ "$*" != "" ]]; do
         case $1 in
             --env-file ) ENV_FILE="$2"; shift;;
             * ) echo "Invalid option: $1"; return 1;;
