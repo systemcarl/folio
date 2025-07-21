@@ -65,6 +65,7 @@ fingerprint_env() {
     env_string+="FOLIO_CF_TOKEN=$FOLIO_CF_TOKEN;"
     env_string+="FOLIO_DO_TOKEN=$FOLIO_DO_TOKEN;"
     env_string+="FOLIO_GH_TOKEN=$FOLIO_GH_TOKEN;"
+    env_string+="FOLIO_GHPR_TOKEN=$FOLIO_GHPR_TOKEN;"
     local hash=$(echo "$env_string" | sha256sum | cut -d ' ' -f 1)
     echo "${hash:0:16}"
 }

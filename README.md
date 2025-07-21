@@ -45,6 +45,8 @@ scripts:
 - `FOLIO_GH_TOKEN`: The *GitHub* API token used to update the commit status
     of the application and CI/CD pipeline. See [*Status*](#code-status) for
     required permission scopes.
+- `FOLIO_GHPR_TOKEN`: The *GitHub* API token used to authenticate *Docker*
+    with the *GitHub Packages* registry.
 
 ## Validation
 Before building the application, you can validate the application code using
@@ -67,6 +69,14 @@ the full list of options, run the script with the `--help` option.
 ```bash
 containerize --push
 ```
+
+The available *Docker* engine must be authenticated to the write to the target
+application package. Alternatively, the `FOLIO_GHPR_TOKEN` environment variable
+can be set to a "classic" *GitHub* API token with the necessary scopes:
+- `write:packages`
+When `FOLIO_GHPR_TOKEN` is set, containerization will automatically attempt to
+authenticate the available *Docker* engine to the *GitHub Packages* registry
+before any operations are performed.
 
 ## Deployment
 The *Blank* application can be deployed to a remote server or a local *Docker*
@@ -101,6 +111,12 @@ The configured *DigitalOcean* API token must have the scopes:
 - `tag:read`,
 - `tag:create`,
 - `tag:delete`
+
+To deploy remotely the target application package must be publicly available on
+the *GitHub Packages* registry. If a *GitHub* Packages API token is used to
+automatically authenticate *Docker*, it must have the scopes:
+- `read:packages`,
+- `write:packages`.
 
 To automatically apply the *Terraform* plan without interaction, you can
 add the `--approve` option.
