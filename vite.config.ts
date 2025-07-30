@@ -1,9 +1,19 @@
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { sentrySvelteKit } from '@sentry/sveltekit';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins : [sveltekit()],
+  plugins : [
+    sentrySvelteKit({
+      sourceMapsUploadOptions : {
+        org : process.env.SENTRY_ORG,
+        project : process.env.SENTRY_PROJECT,
+        authToken : process.env.SENTRY_AUTH_TOKEN,
+      },
+    }),
+    sveltekit(),
+  ],
   test : {
     workspace : [
       {
@@ -25,6 +35,15 @@ export default defineConfig({
           environment : 'node',
           include : ['src/**/*.{test,spec}.{js,ts}'],
           exclude : ['src/**/*.svelte.{test,spec}.{js,ts}'],
+        },
+      },
+      {
+        extends : './vite.config.ts',
+        test : {
+          name : 'config',
+          environment : 'node',
+          include : ['*.{test,spec}.{js,ts}'],
+          exclude : ['src/**'],
         },
       },
     ],

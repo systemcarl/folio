@@ -11,6 +11,19 @@ dependencies must be installed.
 npm install
 ```
 
+### Configuration
+Optional environment variables can be defined in a `.env` file at the root of
+the project. A sample `.env` file is provided as [`.env.example`](.env.example).
+
+#### Error Monitoring & Performance Tracking
+To enable [*Sentry*](https://docs.sentry.io/platforms/javascript/guides/svelte/)
+error tracking and performance monitoring, add the necessary environment
+variables:
+- `PUBLIC_SENTRY_DSN`: The public DSN for your Sentry project,
+- `SENTRY_ORG`: Your Sentry organization slug,
+- `SENTRY_PROJECT`: Your Sentry project slug,
+- `SENTRY_AUTH_TOKEN`: Your Sentry authentication token.
+
 ### Development
 The application can be started locally using [*Vite*](https://vitejs.dev/)'s
 development server.
@@ -24,4 +37,11 @@ be served locally using [*Vite*](https://vitejs.dev/).
 ```bash
 npm run build
 npm run preview
+```
+
+### Testing
+Application and configuration unit tests can be run using
+[*Vitest*](https://vitest.dev/).
+```bash
+npm run test
 ```
