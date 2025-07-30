@@ -18,7 +18,9 @@ the project. A sample `.env` file is provided as [`.env.example`](.env.example).
 #### Logging
 Server side events are automatically logged and formatted using
 [*Pino*](https://getpino.io/). Events are sent to the application's standard
-output to capture logs in the console or environment log files.
+output to capture logs in the console or environment log files. In development,
+[`pino-pretty`](https://github.com/pinojs/pino-pretty) is used to format the log
+output.
 
 #### Error Monitoring & Performance Tracking
 To enable [*Sentry*](https://docs.sentry.io/platforms/javascript/guides/svelte/)

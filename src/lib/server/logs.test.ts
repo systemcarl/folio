@@ -3,18 +3,26 @@ import pino from 'pino';
 
 import { log } from './logs';
 
+let nodeEnv = vi.hoisted(() => 'development');
 const loggerMock = vi.hoisted(() => ({
   info : vi.fn(),
   error : vi.fn(),
 }));
 
+vi.mock('$env/static/private', () => ({
+  get NODE_ENV() { return nodeEnv; },
+}));
 vi.mock('pino', () => ({
   default : vi.fn(() => (loggerMock)),
 }));
 
 function stubEntry() { return { property : 'value' }; }
 
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.resetModules();
+  vi.clearAllMocks();
+  nodeEnv = 'development';
+});
 afterAll(() => { vi.restoreAllMocks(); });
 
 describe('log', () => {
@@ -46,5 +54,23 @@ describe('log', () => {
       ...entry,
       type : 'test',
     }));
+  });
+
+  it('does not format log messages in production', async () => {
+    nodeEnv = 'production';
+    await import('./logs');
+
+    expect(pino).not.toHaveBeenCalledWith(expect.objectContaining({
+      transport : { target : 'pino-pretty' } },
+    ));
+  });
+
+  it('formats log messages in development', async () => {
+    nodeEnv = 'development';
+    await import('./logs');
+
+    expect(pino).toHaveBeenCalledWith(expect.objectContaining({
+      transport : { target : 'pino-pretty' } },
+    ));
   });
 });
