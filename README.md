@@ -15,6 +15,11 @@ npm install
 Optional environment variables can be defined in a `.env` file at the root of
 the project. A sample `.env` file is provided as [`.env.example`](.env.example).
 
+#### Logging
+Server side events are automatically logged and formatted using
+[*Pino*](https://getpino.io/). Events are sent to the application's standard
+output to capture logs in the console or environment log files.
+
 #### Error Monitoring & Performance Tracking
 To enable [*Sentry*](https://docs.sentry.io/platforms/javascript/guides/svelte/)
 error tracking and performance monitoring, add the necessary environment
