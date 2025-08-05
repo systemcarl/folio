@@ -8,9 +8,12 @@ const logger = (NODE_ENV === 'development')
 export function log(
   entry : unknown,
   options : {
-    level? : 'info' | 'error';
+    level? : 'info' | 'warn' | 'error';
   } = {}
 ) {
   const { level = 'info' } = options;
+  if (entry && (typeof entry === 'object') && !(Array.isArray(entry))) {
+    if (!('type' in entry)) entry = { ...entry, type : 'app' };
+  }
   logger[level](entry);
 }
