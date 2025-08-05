@@ -2,6 +2,28 @@
 *Blank* is a simple, open-source, easily-branded blog application, built with
 the [*SvelteKit*](https://kit.svelte.dev/docs/kit) framework.
 
+## Customization
+Aside from the necessary [deployment configuration](#configuration), the
+application requires no additional customization; all customization is optional
+and primarily cosmetic.
+
+### Theming
+Adding a custom `theme.json` file to the `/static` folder will populate the
+application with the provided theme settings.
+```json
+{
+  "themes": {
+    "default": {},
+  }
+}
+```
+
+The theme definitions can define colours, and backgrounds. Background and
+the applied colour palette are defined per section. Colour values are expected
+to be palette keys, not absolute colour values. An example theme definition can
+be found in the [theme](src/lib/utils/theme.ts) utility file along with expected
+type definitions.
+
 ## Deployment
 The built [*SvelteKit*](https://kit.svelte.dev/docs/kit) server-side application
 is configured to be deployed to a [*Node.js*](https://nodejs.org/) environment.

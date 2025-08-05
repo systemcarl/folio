@@ -8,7 +8,7 @@ const logger = (NODE_ENV === 'development')
 export function log(
   entry : unknown,
   options : {
-    level ?: 'info' | 'error';
+    level ?: 'info' | 'warn' | 'error';
   } = {},
 ) {
   const { level = 'info' } = options;
