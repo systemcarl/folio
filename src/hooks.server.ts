@@ -33,10 +33,12 @@ async function requestHandler({ event, resolve } : {
   return response;
 }
 
-function errorHandler({ error, event } : {
+function errorHandler({ error, event, status } : {
   error : unknown;
   event : RequestEvent;
+  status ?: number;
 }) {
+  if (status && (status >= 400) && (status < 500)) return;
   log({
     error,
     event : {

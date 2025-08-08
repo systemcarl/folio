@@ -148,6 +148,16 @@ describe('error handler', () => {
     expect(sentryHandlerSpy).toHaveBeenCalledWith({ error, event });
   });
 
+  it('ignores client errors', () => {
+    const error = stubError();
+    const event = stubEvent();
+    const status = 404;
+
+    handleError({ error, event, status });
+
+    expect(log).not.toHaveBeenCalled();
+  });
+
   it('logs errors', () => {
     const error = stubError();
     const event = stubEvent();
