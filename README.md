@@ -18,11 +18,13 @@ application with the provided theme settings.
 }
 ```
 
-The theme definitions can define colours, and backgrounds. Background and
-the applied colour palette are defined per section. Colour values are expected
-to be palette keys, not absolute colour values. An example theme definition can
-be found in the [theme](src/lib/utils/theme.ts) utility file along with expected
-type definitions.
+The theme definitions can define colour palettes, scale values, backgrounds, and
+typography. Fonts are defined per theme; palettes, scales, backgrounds, and
+typography are defined per section. Colour values, size values, and typography
+fonts are expected to be keys associated with the theme applicable palette,
+scale, or fonts, respectively. An example theme definition can be found in the
+[theme](src/lib/utils/theme.ts) utility file, along with expected type
+definitions.
 
 ## Deployment
 The built [*SvelteKit*](https://kit.svelte.dev/docs/kit) server-side application
