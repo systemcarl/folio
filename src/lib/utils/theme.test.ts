@@ -17,6 +17,7 @@ const testTheme = {
       scale : 'test',
       background : 'test',
       typography : 'test',
+      graphics : 'test',
     },
   },
   palettes : {
@@ -49,14 +50,27 @@ const testTheme = {
     test : { body : { font : 'test', size : 'test' } },
     custom : { body : { font : 'custom', size : 'custom' } },
   },
+  graphics : {
+    default : { graphic : { src : 'defaultGraphic' } },
+    test : { graphic : { src : 'testGraphic' } },
+    custom : { graphic : { src : 'customGraphic' } },
+  },
 } as const;
 
-function makeSection({ palette, scale, fonts, background, typography } : {
+function makeSection({
+  palette,
+  scale,
+  fonts,
+  background,
+  typography,
+  graphics,
+} : {
   palette? : Record<string, unknown>;
   scale? : Record<string, unknown>;
   fonts? : Record<string, unknown>;
   background? : object;
   typography? : Record<string, unknown>;
+  graphics? : Record<string, unknown>;
 }) {
   palette = palette ?? {
     ...defaultThemes.default.palettes.default,
@@ -81,6 +95,11 @@ function makeSection({ palette, scale, fonts, background, typography } : {
     ...defaultThemes.default.typography.default,
     ...testTheme.typography.default,
     ...testTheme.typography[testTheme.sections.default.typography],
+  };
+  graphics = graphics ?? {
+    ...defaultThemes.default.graphics.default,
+    ...testTheme.graphics.default,
+    ...testTheme.graphics[testTheme.sections.default.graphics],
   };
   return {
     palette : { ...palette },
@@ -109,6 +128,7 @@ function makeSection({ palette, scale, fonts, background, typography } : {
         }
       }
     }, {} as unknown),
+    graphics : { ...graphics },
   } as Section;
 }
 
@@ -118,6 +138,7 @@ const defaultSection = makeSection({
   fonts : defaultThemes.default.fonts.default,
   background : defaultThemes.default.backgrounds.default,
   typography : defaultThemes.default.typography.default,
+  graphics : defaultThemes.default.graphics.default,
 });
 
 const testSection = makeSection({
@@ -126,6 +147,7 @@ const testSection = makeSection({
   fonts : testTheme.fonts,
   background : testTheme.backgrounds.test,
   typography : testTheme.typography.test,
+  graphics : testTheme.graphics.test,
 });
 
 vi.mock('$lib/utils/logs', () => ({ log : vi.fn() }));
@@ -455,6 +477,23 @@ describe('getSection', () => {
     }));
   });
 
+  it('returns section using graphics', () => {
+    const theme = {
+      ...testTheme,
+      sections : { default : {
+        ...testTheme.sections.default,
+        graphics : 'custom',
+      } },
+    };
+    const expectedSection = makeSection({
+      graphics : testTheme.graphics.custom,
+    });
+    const section = getSection(theme);
+    expect(section).toEqual(expect.objectContaining({
+      graphics : expect.objectContaining(expectedSection.graphics),
+    }));
+  });
+
   it('returns default palette if palette not set', () => {
     const { palette : _, ...defaultSection } = testTheme.sections.default;
     const theme = {
@@ -769,6 +808,87 @@ describe('getSection', () => {
     const section = getSection(theme);
     expect(section).toEqual(expect.objectContaining({
       typography : expect.objectContaining(expectedSection.typography),
+    }));
+  });
+
+  it('returns default graphics if graphics not set', () => {
+    const { graphics : _, ...defaultSection } = testTheme.sections.default;
+    const theme = {
+      ...testTheme,
+      sections : {
+        ...testTheme.sections,
+        default : defaultSection,
+      },
+    };
+    const expectedSection = makeSection({
+      graphics : testTheme.graphics.default,
+    });
+    const section = getSection(theme);
+    expect(section).toEqual(expect.objectContaining({
+      graphics : expect.objectContaining(expectedSection.graphics),
+    }));
+  });
+
+  it('returns default graphics if invalid graphics', () => {
+    const theme = {
+      ...testTheme,
+      sections : {
+        ...testTheme.sections,
+        default : { ...testTheme.sections.default, graphics : 0 },
+      },
+    };
+    const expectedSection = makeSection({
+      graphics : testTheme.graphics.default,
+    });
+    const section = getSection(theme);
+    expect(section).toEqual(expect.objectContaining({
+      graphics : expect.objectContaining(expectedSection.graphics),
+    }));
+  });
+
+  it('returns default graphics if graphics not found', () => {
+    const theme = {
+      ...testTheme,
+      sections : {
+        ...testTheme.sections,
+        default : { ...testTheme.sections.default, graphics : 'alternate' },
+      },
+    };
+    const expectedSection = makeSection({
+      graphics : testTheme.graphics.default,
+    });
+    const section = getSection(theme);
+    expect(section).toEqual(expect.objectContaining({
+      graphics : expect.objectContaining(expectedSection.graphics),
+    }));
+  });
+
+  it('returns default theme graphics if default not found', () => {
+    const theme = {
+      ...testTheme,
+      sections : {
+        ...testTheme.sections,
+        default : { ...testTheme.sections.default, graphics : 'custom' }
+      },
+      graphics : { alternate : { graphic : { src : 'alternateGraphic' } } },
+    };
+    const expectedSection = makeSection({
+      graphics : defaultThemes.default.graphics.default,
+    });
+    const section = getSection(theme);
+    expect(section).toEqual(expect.objectContaining({
+      graphics : expect.objectContaining(expectedSection.graphics),
+    }));
+  });
+
+  it('returns default theme graphics if no graphics', () => {
+    const { graphics : _, ...theme } = testTheme;
+    const expectedSection = makeSection({
+      graphics : defaultThemes.default.graphics.default,
+    });
+    const section = getSection(theme);
+    expect(section).toEqual(expect.objectContaining({
+      graphics : expect.objectContaining(expectedSection.graphics),
     }));
   });
 });
@@ -1639,5 +1759,178 @@ describe('getSection typography', () => {
     const section = getSection(theme);
     expect(section.typography.body)
       .not.toEqual(expect.objectContaining(unexpectedTypography));
+  });
+});
+
+describe('getSection graphics', () => {
+  it('returns set graphics entries', () => {
+    const theme = testTheme;
+    const expectedGraphics = testSection.graphics;
+    const section = getSection(theme);
+    expect(section.graphics)
+      .toEqual(expect.objectContaining(expectedGraphics));
+  });
+
+  it('returns default graphics entries if not defined', () => {
+    const { graphic : _, ...graphics } =
+      testTheme.graphics[testTheme.sections.default.graphics];
+    const theme = {
+      ...testTheme,
+      graphics : {
+        ...testTheme.graphics,
+        [testTheme.sections.default.graphics] : { ...graphics },
+      },
+    };
+    const expectedGraphics = makeSection({
+      graphics : testTheme.graphics.default,
+    }).graphics;
+    const section = getSection(theme);
+    expect(section.graphics)
+      .toEqual(expect.objectContaining(expectedGraphics));
+  });
+
+  it('returns default theme graphics entries if not defined', () => {
+    const theme = { ...testTheme, graphics : {} };
+    const expectedGraphics = makeSection({
+      graphics : defaultThemes.default.graphics.default,
+    }).graphics;
+    const section = getSection(theme);
+    expect(section.graphics)
+      .toEqual(expect.objectContaining(expectedGraphics));
+  });
+
+  it('drops invalid graphic', () => {
+    const theme = {
+      ...testTheme,
+      graphics : {
+        ...testTheme.graphics,
+        [testTheme.sections.default.graphics] : {
+          ...testTheme.graphics.custom,
+          graphic : 1,
+        },
+      },
+    };
+    const unexpectedGraphics = { graphic : expect.anything() };
+    const section = getSection(theme);
+    expect(section.graphics)
+      .not.toEqual(expect.objectContaining(unexpectedGraphics));
+  });
+
+  it('drops graphic with invalid src', () => {
+    const theme = {
+      ...testTheme,
+      graphics : {
+        ...testTheme.graphics,
+        [testTheme.sections.default.graphics] : {
+          ...testTheme.graphics.custom,
+          graphic : { src : 1 },
+        },
+      },
+    };
+    const unexpectedGraphics = { graphic : expect.anything() };
+    const section = getSection(theme);
+    expect(section.graphics)
+      .not.toEqual(expect.objectContaining(unexpectedGraphics));
+  });
+
+  it('drops invalid graphic alternate text', () => {
+    const theme = {
+      ...testTheme,
+      graphics : {
+        ...testTheme.graphics,
+        [testTheme.sections.default.graphics] : {
+          ...testTheme.graphics.custom,
+          graphic : { src : 'graphic.jpg', alt : 1 },
+        },
+      },
+    };
+    const unexpectedGraphic = { alt : expect.anything() };
+    const section = getSection(theme);
+    expect(section.graphics.graphic)
+      .not.toEqual(expect.objectContaining(unexpectedGraphic));
+  });
+
+  it('drops invalid graphic colour map', () => {
+    const theme = {
+      ...testTheme,
+      graphics : {
+        ...testTheme.graphics,
+        [testTheme.sections.default.graphics] : {
+          ...testTheme.graphics.custom,
+          graphic : { src : 'graphic.jpg', colourMap : 1 },
+        },
+      },
+    };
+    const unexpectedGraphic = { colourMap : expect.anything() };
+    const section = getSection(theme);
+    expect(section.graphics.graphic)
+      .not.toEqual(expect.objectContaining(unexpectedGraphic));
+  });
+
+  it('drops invalid graphic colour map entries', () => {
+    const theme = {
+      ...testTheme,
+      graphics : {
+        ...testTheme.graphics,
+        [testTheme.sections.default.graphics] : {
+          ...testTheme.graphics.custom,
+          graphic : { src : 'graphic.jpg', colourMap : { invalid : 0 } },
+        },
+      },
+    };
+    const unexpectedColourMap = { invalid : expect.anything() };
+    const section = getSection(theme);
+    expect(section.graphics.graphic?.colourMap)
+      .not.toEqual(expect.objectContaining(unexpectedColourMap));
+  });
+
+  it('returns resolved graphic colour map', () => {
+    const theme = {
+      ...testTheme,
+      palettes : {
+        ...testTheme.palettes,
+        [testTheme.sections.default.palette] : {
+          ...testTheme.palettes[testTheme.sections.default.palette],
+          value : '#123456',
+        },
+      },
+      graphics : {
+        ...testTheme.graphics,
+        [testTheme.sections.default.graphics] : {
+          ...testTheme.graphics.custom,
+          graphic : { src : 'graphic.jpg', colourMap : { key : 'value' } }
+        },
+      },
+    };
+    const expectedGraphics = makeSection({
+      palette : {
+        ...testTheme.palettes[testTheme.sections.default.palette],
+        value : '#123456',
+      },
+      graphics : {
+        ...testTheme.graphics[testTheme.sections.default.graphics],
+        graphic : { src : 'graphic.jpg', colourMap : { key : '#123456' } },
+      },
+    }).graphics;
+    const section = getSection(theme);
+    expect(section.graphics)
+      .toEqual(expect.objectContaining(expectedGraphics));
+  });
+
+  it('drops graphic colour map entries if not found', () => {
+    const theme = {
+      ...testTheme,
+      graphics : {
+        ...testTheme.graphics,
+        [testTheme.sections.default.graphics] : {
+          ...testTheme.graphics.custom,
+          graphic : { src : 'graphic.jpg', colourMap : { invalid : 'bad' } },
+        },
+      },
+    };
+    const unexpectedColourMap = { invalid : expect.anything() };
+    const section = getSection(theme);
+    expect(section.graphics.graphic?.colourMap)
+      .not.toEqual(expect.objectContaining(unexpectedColourMap));
   });
 });
