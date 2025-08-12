@@ -5,6 +5,7 @@ export interface Section {
   scale : Scale;
   background : Background;
   typography : Record<string, Typography>;
+  graphics : Record<string, Graphic>;
 }
 
 export type Palette = Record<string, string>;
@@ -39,6 +40,12 @@ export interface Typography {
   shadowColour ?: string;
 }
 
+export interface Graphic {
+  src : string;
+  alt ?: string;
+  colourMap ?: Record<string, string>;
+}
+
 export const defaultTheme = {
   sections : {
     default : {
@@ -46,6 +53,7 @@ export const defaultTheme = {
       scale : 'default',
       background : 'default',
       typography : 'default',
+      graphics : 'default',
     },
   },
   palettes : {
@@ -80,6 +88,9 @@ export const defaultTheme = {
         colour : 'textPrimary',
       },
     },
+  },
+  graphics : {
+    default : {},
   },
 } as const;
 
@@ -116,6 +127,10 @@ function makeSection(section : unknown, { theme } : {
     && (('typography' in section)
       ? section.typography
       : defaultTheme.sections.default.typography));
+  let graphics = ((section) && (typeof section === 'object')
+    && (('graphics' in section)
+      ? section.graphics
+      : defaultTheme.sections.default.graphics));
 
   if (typeof palette === 'string')
     palette = getPalette(theme, { key : palette });
@@ -148,7 +163,14 @@ function makeSection(section : unknown, { theme } : {
     });
   }
 
-  return { palette, scale, background, typography } as Section;
+  if (typeof graphics === 'string')
+    graphics = getGraphics(theme, {
+      key : graphics,
+      palette : palette as Palette,
+    });
+  else graphics = getGraphics(theme, { palette : palette as Palette });
+
+  return { palette, scale, background, typography, graphics } as Section;
 }
 
 function makePalette(palette : unknown) : Palette {
@@ -335,6 +357,56 @@ function makeTypography(typography : unknown, { palette, scale, fonts } : {
   return typ;
 }
 
+function makeGraphics(graphics : unknown, { palette } : {
+  palette ?: Palette;
+} = {}) : Record<string, Graphic> {
+  const gfx = ((typeof graphics === 'object' && graphics !== null)
+    ? copy(graphics)
+    : {}) as Record<string, Graphic>;
+
+  for (const key in gfx) {
+    const g = gfx[key];
+    if (g === null || typeof g !== 'object' || Array.isArray(g)) {
+      delete gfx[key];
+      continue;
+    }
+
+    if (typeof g.src !== 'string') {
+      delete gfx[key];
+      continue;
+    }
+
+    if (g.alt !== undefined && typeof g.alt !== 'string') {
+      delete g.alt;
+    }
+
+    if (g.colourMap !== undefined) {
+      if (typeof g.colourMap !== 'object')
+        delete g.colourMap;
+      else if (g.colourMap === null) {
+        delete g.colourMap;
+      } else {
+        for (const key in g.colourMap) {
+          if (typeof g.colourMap[key] !== 'string') {
+            delete g.colourMap[key];
+          }
+        }
+      }
+    }
+
+    if (g.colourMap) {
+      for (const key in g.colourMap) {
+        if (g.colourMap[key] === undefined) continue;
+        const paletteColour = palette?.[g.colourMap[key]];
+        if (paletteColour) g.colourMap[key] = paletteColour;
+        else delete g.colourMap[key];
+      }
+    }
+  }
+
+  return gfx;
+}
+
 function buildPalette(theme : unknown, key ?: string) : object {
   if (!theme || typeof theme !== 'object') return defaultTheme.palettes.default;
 
@@ -407,6 +479,23 @@ function buildTypography(theme : unknown, key ?: string) : object {
   return { ...parentTypography, ...typography };
 }
 
+function buildGraphics(theme : unknown, key ?: string) : object {
+  if (!theme || typeof theme !== 'object')
+    return defaultTheme.graphics.default;
+
+  if (key === undefined)
+    key = tryGet(theme, '.sections.default.graphics', isKey);
+  if (key === undefined) key = 'default';
+
+  const graphics = tryGet(theme, `.graphics.${key}`, isObject);
+
+  const parentGraphics = (key === 'default')
+    ? defaultTheme.graphics.default
+    : buildGraphics(theme, 'default');
+
+  return { ...parentGraphics, ...graphics };
+}
+
 function buildSection(theme : unknown, key ?: string) : object {
   if (!theme || typeof theme !== 'object') return defaultTheme.sections.default;
 
@@ -462,6 +551,14 @@ function getTypography(
 ) : Record<string, Typography> {
   const typography = buildTypography(theme, key);
   return makeTypography(typography, { palette, scale : scale, fonts });
+}
+
+function getGraphics(
+  theme : unknown,
+  { key, palette } : { key ?: string; palette ?: Palette; } = {},
+) : Record<string, Graphic> {
+  const graphics = buildGraphics(theme, key);
+  return makeGraphics(graphics, { palette });
 }
 
 export function getSection(
