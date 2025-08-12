@@ -1,5 +1,42 @@
 import { describe, it, expect } from 'vitest';
-import { tryGet } from './typing';
+import { isKey, isObject, tryGet } from './typing';
+
+describe('isKey', () => {
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['number', 42],
+    ['boolean', true],
+    ['array', []],
+  ])('should return false for %s input', (_, input) => {
+    const actual = isKey(input);
+    expect(actual).toBe(false);
+  });
+
+  it('should return true for string input', () => {
+    const actual = isKey('string');
+    expect(actual).toBe(true);
+  });
+});
+
+describe('isObject', () => {
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['number', 42],
+    ['string', 'string'],
+    ['boolean', true],
+    ['array', []],
+  ])('should return false for %s input', (_, input) => {
+    const actual = isObject(input);
+    expect(actual).toBe(false);
+  });
+
+  it('should return true for object input', () => {
+    const actual = isObject({});
+    expect(actual).toBe(true);
+  });
+});
 
 describe('tryGet', () => {
   it.each([

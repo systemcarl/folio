@@ -1,4 +1,4 @@
-import { tryGet } from './typing';
+import { isKey, isObject, tryGet } from './typing';
 
 export interface Section {
   palette : Palette;
@@ -93,14 +93,6 @@ export const defaultTheme = {
     default : {},
   },
 } as const;
-
-function isKey(value : unknown) : value is string {
-  return typeof value === 'string';
-}
-
-function isObject(value : unknown) : value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function copy(value : unknown) : unknown {
   return (typeof value === 'object' && value !== null)
@@ -567,4 +559,12 @@ export function getSection(
 ) : Section {
   const section = buildSection(theme, key);
   return makeSection(section, { theme });
+}
+
+export function getAllSections(theme : unknown) : Record<string, Section> {
+  const sections = tryGet(theme, '.sections', isObject);
+  const sectionKeys = sections ? Object.keys(sections) : ['default'];
+  const allSections : Record<string, Section> = {};
+  for (const key of sectionKeys) allSections[key] = getSection(theme, { key });
+  return allSections;
 }

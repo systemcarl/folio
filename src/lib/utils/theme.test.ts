@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 
 import type { Font, Section } from './theme';
-import { defaultTheme, getFonts, getSection } from './theme';
+import {
+  defaultTheme,
+  getFonts,
+  getSection,
+  getAllSections,
+} from './theme';
 
 const defaultThemes = { default : defaultTheme } as const;
 
@@ -237,6 +242,81 @@ describe('getFonts', () => {
     const unexpectedFont = { import : expect.anything() };
     const fonts = getFonts(theme);
     expect(fonts.custom).toEqual(expect.not.objectContaining(unexpectedFont));
+  });
+});
+
+describe('getAllSections', () => {
+  it('returns default theme section if no theme provided', () => {
+    const sections = getAllSections(undefined);
+    expect(sections).toEqual({ default : defaultSection });
+  });
+
+  it('returns default theme section if theme is not an object', () => {
+    const sections = getAllSections('not-an-object');
+    expect(sections).toEqual({ default : defaultSection });
+  });
+
+  it('returns default theme section if theme has no sections', () => {
+    const theme = { ...testTheme, sections : undefined };
+    const sections = getAllSections(theme);
+    const defaultSection = defaultTheme.sections.default;
+    const expectedSection = makeSection({
+      palette : testTheme.palettes[defaultSection.palette],
+      scale : testTheme.scales[defaultSection.scale],
+      fonts : testTheme.fonts,
+      background : testTheme.backgrounds[defaultSection.background],
+      typography : testTheme.typography[defaultSection.typography],
+      graphics : testTheme.graphics[defaultSection.graphics],
+    });
+    expect(sections).toEqual({
+      default : expect.objectContaining({
+        palette : expect.objectContaining(expectedSection.palette),
+        scale : expect.objectContaining(expectedSection.scale),
+        background : expect.objectContaining(expectedSection.background),
+        typography : expect.objectContaining(expectedSection.typography),
+      }),
+    });
+  });
+
+  it('returns all sections', () => {
+    const theme = {
+      ...testTheme,
+      sections : {
+        ...testTheme.sections,
+        default : testTheme.sections.default,
+        custom : {
+          ...testTheme.sections.default,
+          palette : 'custom',
+          scale : 'custom',
+          background : 'custom',
+          typography : 'custom',
+          graphics : 'custom',
+        },
+      },
+    };
+    const expectedDefaultSection = testSection;
+    const expectedCustomSection = makeSection({
+      palette : testTheme.palettes.custom,
+      scale : testTheme.scales.custom,
+      fonts : testTheme.fonts,
+      background : testTheme.backgrounds.custom,
+      typography : testTheme.typography.custom,
+    });
+    const sections = getAllSections(theme);
+    expect(sections).toEqual({
+      default : expect.objectContaining({
+        palette : expect.objectContaining(expectedDefaultSection.palette),
+        scale : expect.objectContaining(expectedDefaultSection.scale),
+        background : expect.objectContaining(expectedDefaultSection.background),
+        typography : expect.objectContaining(expectedDefaultSection.typography),
+      }),
+      custom : expect.objectContaining({
+        palette : expect.objectContaining(expectedCustomSection.palette),
+        scale : expect.objectContaining(expectedCustomSection.scale),
+        background : expect.objectContaining(expectedCustomSection.background),
+        typography : expect.objectContaining(expectedCustomSection.typography),
+      }),
+    });
   });
 });
 

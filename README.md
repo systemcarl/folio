@@ -9,11 +9,14 @@ and primarily cosmetic.
 
 ### Theming
 Adding a custom `theme.json` file to the `/static` folder will populate the
-application with the provided theme settings.
+application with the provided theme settings. The theme shown in the client is
+determined by the `theme` local storage key. If no theme is set, the default
+theme will be used.
 ```json
 {
   "themes": {
     "default": {},
+    "custom": {}
   }
 }
 ```
@@ -73,8 +76,16 @@ npm run preview
 ```
 
 ### Testing
-Application and configuration unit tests can be run using
-[*Vitest*](https://vitest.dev/).
+Unit tests and end-to-end integration test are included. Application and
+configuration unit tests can be run using [*Vitest*](https://vitest.dev/);
+Integration tests are ran via [*Playwright*](https://playwright.dev/). Both are
+included in the package test script:
 ```bash
 npm run test
+```
+
+Before running end-to-end tests, *Playwright* browser dependencies must be
+installed:
+```bash
+npx playwright install
 ```

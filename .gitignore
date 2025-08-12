@@ -1,3 +1,4 @@
+test-results
 node_modules
 
 # Output
@@ -23,4 +24,5 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Static files
-/static
+/static/*
+!/static/global.css
