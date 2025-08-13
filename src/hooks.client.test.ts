@@ -2,6 +2,7 @@ import type { NavigationEvent } from '@sveltejs/kit';
 import { beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
 import * as Sentry from '@sentry/sveltekit';
 
+import { log } from '$lib/utils/log';
 import { handleError } from './hooks.client';
 
 const handlerSpy = vi.hoisted(() => vi.fn());
@@ -15,6 +16,9 @@ vi.mock('@sentry/sveltekit', () => ({
     handlerSpy(args);
     return handler(args);
   }),
+}));
+vi.mock('$lib/utils/log', () => ({
+  log : vi.fn(),
 }));
 
 function stubError() { return new Error('Test error'); }
@@ -45,7 +49,6 @@ describe('client hooks', () => {
 
 describe('error handler', () => {
   it('catches error with Sentry', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
     const error = stubError();
     const event = stubEvent();
 
@@ -55,15 +58,15 @@ describe('error handler', () => {
   });
 
   it('logs errors', () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error')
-      .mockImplementation(() => {});
     const error = stubError();
     const event = stubEvent();
 
     handleError({ error, event });
 
-    expect(consoleErrorSpy)
-      .toHaveBeenCalledWith('Unhandled error (client):', error, event);
-    consoleErrorSpy.mockRestore();
+    expect(log).toHaveBeenCalledWith({
+      message : 'Unhandled error',
+      error,
+      event,
+    }, { level : 'error' });
   });
 });
