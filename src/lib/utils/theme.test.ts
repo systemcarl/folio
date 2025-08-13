@@ -1831,6 +1831,26 @@ describe('getSection typography', () => {
     expect(section.typography.body)
       .not.toEqual(expect.objectContaining(unexpectedTypography));
   });
+
+  it('returns default theme body typography if body typography unset', () => {
+    const theme = {
+      ...testTheme,
+      typography : {
+        ...testTheme.typography,
+        [testTheme.sections.default.typography] : {
+          ...testTheme.typography[testTheme.sections.default.typography],
+          body : undefined,
+        },
+      },
+    };
+    const expectedSection = makeSection({
+      typography : defaultThemes.default.typography.default,
+    });
+    const section = getSection(theme);
+    expect(section).toEqual(expect.objectContaining({
+      typography : expect.objectContaining(expectedSection.typography),
+    }));
+  });
 });
 
 describe('getSection graphics', () => {

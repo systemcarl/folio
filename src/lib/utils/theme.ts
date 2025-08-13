@@ -4,7 +4,10 @@ export interface Section {
   palette : Palette;
   scale : Scale;
   background : Background;
-  typography : Record<string, Typography>;
+  typography : {
+    body : Typography;
+    [key : string] : Typography;
+  };
   graphics : Record<string, Graphic>;
 }
 
@@ -94,7 +97,7 @@ export const defaultTheme = {
   },
 } as const;
 
-function copy(value : unknown) : unknown {
+function copy<T>(value : T) : T {
   return (typeof value === 'object' && value !== null)
     ? JSON.parse(JSON.stringify(value))
     : value;
@@ -293,6 +296,13 @@ function makeTypography(typography : unknown, { palette, scale, fonts } : {
       delete typ[key];
       continue;
     }
+  }
+
+  if (!typ.body) typ.body = copy(defaultTheme.typography.default.body);
+
+  for (const key in typ) {
+    if (typ[key] === undefined) continue;
+    const t = typ[key] = { ...typ[key] };
 
     if (typeof t.font !== 'string')
       t.font = defaultTheme.typography.default.body.font;
