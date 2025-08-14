@@ -1,6 +1,8 @@
 import type { LayoutServerLoad } from './$types';
-import { loadThemes } from '$lib/server/theme';
+import { loadThemes, loadGraphics } from '$lib/server/theme';
 
 export const load : LayoutServerLoad = async ({ fetch }) => {
-  return { themes : await loadThemes({ fetch }) };
+  const themes = await loadThemes({ fetch });
+  const graphics = await loadGraphics(themes, { fetch });
+  return { themes, graphics };
 };

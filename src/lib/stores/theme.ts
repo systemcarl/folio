@@ -15,10 +15,13 @@ export const contextKeys = {
 };
 
 let themes = writable<Record<string, unknown>>({});
+let graphics = writable<Record<string, string>>({});
+
 let theme = writable('default');
 
 export function resetThemes() {
   themes = writable({});
+  graphics = writable({});
   theme = writable('default');
 }
 
@@ -26,6 +29,12 @@ export function getThemes() { return get(themes); }
 
 export function setThemes(newThemes : Record<string, unknown>) {
   themes.set(newThemes);
+}
+
+export function getGraphics() { return get(graphics); }
+
+export function setGraphics(newGraphics : Record<string, string>) {
+  graphics.set(newGraphics);
 }
 
 export function getTheme() { return get(theme); }

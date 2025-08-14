@@ -1,98 +1,154 @@
 import { beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
 
-import { log } from './logs';
-import { defaultTheme, loadThemes } from './theme';
-
-let themeConfig : { themes : Record<string, unknown>; };
+import { defaultTheme, loadThemes, loadGraphics } from './theme';
 
 const defaultThemes = { themes : { default : defaultTheme } } as const;
 
-vi.mock('./logs', () => ({ log : vi.fn() }));
+const getAllSectionsMock = vi.hoisted(() => vi.fn());
 
-const fetchMock = vi.fn();
+const fetchResourceMock = vi.hoisted(() => vi.fn());
+const FetchJsonResourceMock = vi.hoisted(() => vi.fn());
+
+vi.mock('$lib/utils/theme', () => ({
+  getAllSections : getAllSectionsMock,
+}));
+vi.mock('./http', () => ({
+  fetchResource : fetchResourceMock,
+  fetchJsonResource : FetchJsonResourceMock,
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  themeConfig = { themes : {} };
-  fetchMock.mockResolvedValue({
-    ok : true,
-    json : async () => themeConfig,
-  });
+  getAllSectionsMock.mockReturnValue({});
+  fetchResourceMock.mockResolvedValue('');
+  FetchJsonResourceMock.mockResolvedValue({});
 });
 
 afterAll(() => { vi.restoreAllMocks(); });
 
 describe('loadThemes', () => {
   it('fetches theme.json', async () => {
-    await loadThemes({ fetch : fetchMock });
-    expect(fetchMock).toHaveBeenCalledWith('/theme.json');
+    const fetch = vi.fn();
+    await loadThemes({ fetch });
+    expect(FetchJsonResourceMock)
+      .toHaveBeenCalledWith('/theme.json', { fetch });
   });
 
   it('returns fetched themes', async () => {
-    themeConfig = { themes : { customTheme : {} } };
-    const result = await loadThemes({ fetch : fetchMock });
+    const themeConfig = { themes : { customTheme : {} } };
+    FetchJsonResourceMock.mockResolvedValue(themeConfig);
+    const result = await loadThemes({ fetch : vi.fn() });
     expect(result).toEqual(themeConfig?.themes);
   });
 
   it('returns default theme if fetch fails', async () => {
-    fetchMock.mockRejectedValue(new Error('Network error'));
-    const result = await loadThemes({ fetch : fetchMock });
+    FetchJsonResourceMock.mockResolvedValue(null);
+    const result = await loadThemes({ fetch : vi.fn() });
     expect(result).toEqual(defaultThemes.themes);
   });
+});
 
-  it('returns default theme if fetch not ok', async () => {
-    fetchMock.mockResolvedValue({ ok : false, json : async () => themeConfig });
-    const result = await loadThemes({ fetch : fetchMock });
-    expect(result).toEqual(defaultThemes.themes);
-  });
-
-  it('returns default theme if JSON parsing fails', async () => {
-    fetchMock.mockResolvedValue({
-      ok : true,
-      json : async () => { throw new Error('Parse error'); },
-    });
-    const result = await loadThemes({ fetch : fetchMock });
-    expect(result).toEqual(defaultThemes.themes);
-  });
-
-  it('log warning if fetch fails', async () => {
-    fetchMock.mockRejectedValue(new Error('Network error'));
-    await loadThemes({ fetch : fetchMock });
-    expect(log).toHaveBeenCalledWith({
-      message : 'Failed to fetch theme.json',
-    }, { level : 'warn' });
-  });
-
-  it('log warning if fetch not ok', async () => {
-    fetchMock.mockResolvedValue({
-      ok : false,
-      status : 404,
-      text : async () => 'Not Found',
-    });
-    await loadThemes({ fetch : fetchMock });
-    expect(log).toHaveBeenCalledWith({
-      message : 'Failed to fetch theme.json',
-      response : {
-        status : 404,
-        body : 'Not Found',
+describe('loadGraphics', () => {
+  it('fetches all background SVGs', async () => {
+    const fetch = vi.fn();
+    const sections1 = { default : {
+      background : { img : { src : '/background1.svg' } },
+      graphics : {},
+    } };
+    const sections2 = {
+      default : {
+        background : { img : { src : '/background2.svg' } },
+        graphics : {},
       },
-    }, { level : 'warn' });
+      section : {
+        background : { img : { src : '/background3.svg' } },
+        graphics : {},
+      },
+    };
+    const themes = { theme1 : {}, theme2 : {} };
+    getAllSectionsMock.mockReturnValueOnce(sections1);
+    getAllSectionsMock.mockReturnValueOnce(sections2);
+    await loadGraphics(themes, { fetch });
+    expect(fetchResourceMock).toHaveBeenCalledTimes(3);
+    expect(fetchResourceMock)
+      .toHaveBeenCalledWith('/background1.svg', { fetch });
+    expect(fetchResourceMock)
+      .toHaveBeenCalledWith('/background2.svg', { fetch });
+    expect(fetchResourceMock)
+      .toHaveBeenCalledWith('/background3.svg', { fetch });
   });
 
-  it('log warning if JSON parsing fails', async () => {
-    fetchMock.mockResolvedValue({
-      ok : true,
-      status : 200,
-      text : async () => 'Invalid JSON',
-      json : async () => { throw new Error('Parse error'); },
-    });
-    await loadThemes({ fetch : fetchMock });
-    expect(log).toHaveBeenCalledWith({
-      message : 'Failed to parse theme.json',
-      response : {
-        status : 200,
-        body : 'Invalid JSON',
+  it('fetches all SVG graphics', async () => {
+    const fetch = vi.fn();
+    const sections1 = { default : {
+      background : {},
+      graphics : { default : { src : '/graphic1.svg' } } },
+    };
+    const sections2 = { default : { background : {}, graphics : {
+      default : { src : '/graphic2.svg' },
+      graphic : { src : '/graphic3.svg' },
+    } } };
+    const sections3 = {
+      default : { background : {}, graphics : {
+        default : { src : '/graphic4.svg' } },
       },
-    }, { level : 'warn' });
+      section : { background : {}, graphics : {
+        default : { src : '/graphic5.svg' } },
+      },
+    };
+    const themes = { theme1 : {}, theme2 : {}, theme3 : {} };
+    getAllSectionsMock.mockReturnValueOnce(sections1);
+    getAllSectionsMock.mockReturnValueOnce(sections2);
+    getAllSectionsMock.mockReturnValueOnce(sections3);
+    await loadGraphics(themes, { fetch });
+    expect(fetchResourceMock).toHaveBeenCalledTimes(5);
+    expect(fetchResourceMock).toHaveBeenCalledWith('/graphic1.svg', { fetch });
+    expect(fetchResourceMock).toHaveBeenCalledWith('/graphic2.svg', { fetch });
+    expect(fetchResourceMock).toHaveBeenCalledWith('/graphic3.svg', { fetch });
+    expect(fetchResourceMock).toHaveBeenCalledWith('/graphic4.svg', { fetch });
+    expect(fetchResourceMock).toHaveBeenCalledWith('/graphic5.svg', { fetch });
+  });
+
+  it('returns SVG graphics as a map', async () => {
+    const background = '<background>';
+    const graphic = '<graphics>';
+    const sections1 = { default : {
+      background : { img : { src : '/background.svg' } },
+      graphics : {},
+    } };
+    const sections2 = { default : {
+      background : {},
+      graphics : { default : { src : '/graphic.svg' } },
+    } };
+    const themes = { theme1 : {}, theme2 : {} };
+    getAllSectionsMock.mockReturnValueOnce(sections1);
+    getAllSectionsMock.mockReturnValueOnce(sections2);
+    fetchResourceMock.mockResolvedValueOnce(background);
+    fetchResourceMock.mockResolvedValueOnce(graphic);
+    const graphics = await loadGraphics(themes, { fetch : vi.fn() });
+    expect(graphics).toEqual({
+      '/background.svg' : background,
+      '/graphic.svg' : graphic,
+    });
+  });
+
+  it('ignores non-SVG graphics', async () => {
+    const fetch = vi.fn();
+    const sections1 = { default : {
+      background : { img : { src : '/background1.svg' } },
+      graphics : { default : { src : '/graphic1.png' } },
+    } };
+    const sections2 = { default : {
+      background : { img : { src : '/background2.jpg' } },
+      graphics : { default : { src : '/graphic2.svg' } },
+    } };
+    const themes = { theme1 : {}, theme2 : {} };
+    getAllSectionsMock.mockReturnValueOnce(sections1);
+    getAllSectionsMock.mockReturnValueOnce(sections2);
+    await loadGraphics(themes, { fetch });
+    expect(fetchResourceMock).toHaveBeenCalledTimes(2);
+    expect(fetchResourceMock)
+      .toHaveBeenCalledWith('/background1.svg', { fetch });
+    expect(fetchResourceMock).toHaveBeenCalledWith('/graphic2.svg', { fetch });
   });
 });

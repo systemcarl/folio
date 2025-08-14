@@ -5,6 +5,7 @@ import { render } from '@testing-library/svelte';
 import Layout from './+layout.svelte';
 
 const setThemesMock = vi.hoisted(() => vi.fn());
+const setGraphicsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('$lib/hooks/useThemes', async (original) => {
   const originalDefault =
@@ -13,6 +14,16 @@ vi.mock('$lib/hooks/useThemes', async (original) => {
     default : () => ({
       ...originalDefault(),
       setThemes : setThemesMock,
+    }),
+  };
+});
+vi.mock('$lib/hooks/useGraphics', async (original) => {
+  const originalDefault =
+    ((await original()) as { default : () => object; }).default;
+  return {
+    default : () => ({
+      ...originalDefault(),
+      setGraphics : setGraphicsMock,
     }),
   };
 });
@@ -37,5 +48,14 @@ describe('/+layout.svelte', () => {
       children : ((() => {}) as Snippet<[]>),
     });
     expect(setThemesMock).toHaveBeenCalledWith(expected);
+  });
+
+  it('sets loaded graphics', () => {
+    const expected = { test : '<svg>Test</svg>' };
+    render(Layout, {
+      data : { ...data, graphics : expected },
+      children : ((() => {}) as Snippet<[]>),
+    });
+    expect(setGraphicsMock).toHaveBeenCalledWith(expected);
   });
 });

@@ -1,5 +1,5 @@
 import { beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
-import { loadThemes } from '$lib/server/theme';
+import { loadGraphics, loadThemes } from '$lib/server/theme';
 
 import type { LayoutServerLoadEvent } from './$types';
 import { load } from './+layout.server';
@@ -14,10 +14,12 @@ const event = {
 } as unknown as LayoutServerLoadEvent;
 
 const loadThemesMock = vi.hoisted(() => vi.fn());
+const loadGraphicsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('$lib/server/theme', async original => ({
   ...(await original()),
   loadThemes : loadThemesMock,
+  loadGraphics : loadGraphicsMock,
 }));
 
 beforeEach(() => { vi.clearAllMocks(); });
@@ -35,5 +37,20 @@ describe('+layout.server.ts', () => {
     loadThemesMock.mockResolvedValueOnce(expected);
     const result = await load(event) as { themes : object; };
     expect(result.themes).toEqual(expected);
+  });
+
+  it('loads graphics', async () => {
+    const expected = { test : {} };
+    const fetch = vi.fn();
+    loadThemesMock.mockResolvedValueOnce(expected);
+    await load({ ...event, fetch });
+    expect(loadGraphics).toHaveBeenCalledWith(expected, { fetch });
+  });
+
+  it('returns graphic data', async () => {
+    const expected = { test : '<svg></svg>' };
+    loadGraphicsMock.mockResolvedValueOnce(expected);
+    const result = await load(event) as { graphics : object; };
+    expect(result.graphics).toEqual(expected);
   });
 });
