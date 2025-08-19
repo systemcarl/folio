@@ -7,6 +7,11 @@ Aside from the necessary [deployment configuration](#configuration), the
 application requires no additional customization; all customization is optional
 and primarily cosmetic.
 
+### Locale
+A locale can be set in `locale.json`, located in the `/static` folder. Values
+found in the `locale.json` file will be used to populate application text. The
+[default locale](src/lib/utils/locale.ts) defines all expected values.
+
 ### Theming
 Adding a custom `theme.json` file to the `/static` folder will populate the
 application with the provided theme settings. The theme shown in the client is

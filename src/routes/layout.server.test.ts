@@ -1,4 +1,5 @@
 import { beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
+import { loadLocale } from '$lib/server/locale';
 import { loadGraphics, loadThemes } from '$lib/server/theme';
 
 import type { LayoutServerLoadEvent } from './$types';
@@ -13,9 +14,14 @@ const event = {
   fetch : vi.fn(),
 } as unknown as LayoutServerLoadEvent;
 
+const loadLocaleMock = vi.hoisted(() => vi.fn());
 const loadThemesMock = vi.hoisted(() => vi.fn());
 const loadGraphicsMock = vi.hoisted(() => vi.fn());
 
+vi.mock('$lib/server/locale', async original => ({
+  ...(await original()),
+  loadLocale : loadLocaleMock,
+}));
 vi.mock('$lib/server/theme', async original => ({
   ...(await original()),
   loadThemes : loadThemesMock,
@@ -26,6 +32,19 @@ beforeEach(() => { vi.clearAllMocks(); });
 afterAll(() => { vi.restoreAllMocks(); });
 
 describe('+layout.server.ts', () => {
+  it('loads locale, async', async () => {
+    const fetch = vi.fn();
+    await load({ ...event, fetch });
+    expect(loadLocale).toHaveBeenCalledWith({ fetch });
+  });
+
+  it('returns locale data', async () => {
+    const expected = { test : {} };
+    loadLocaleMock.mockResolvedValueOnce(expected);
+    const result = await load(event) as { locale : object; };
+    expect(result.locale).toEqual(expected);
+  });
+
   it('loads themes', async () => {
     const fetch = vi.fn();
     await load({ ...event, fetch });
