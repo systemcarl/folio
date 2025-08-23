@@ -23,7 +23,7 @@ export default defineConfig({
           name : 'client',
           environment : 'jsdom',
           clearMocks : true,
-          include : ['src/**/*.svelte.{test,spec}.{js,ts}'],
+          include : ['src/**/*.svelte.test.{js,ts}'],
           exclude : ['src/lib/server/**'],
           setupFiles : [
             './vitest-setup.ts',
@@ -48,6 +48,23 @@ export default defineConfig({
           include : ['*.{test,spec}.{js,ts}'],
           exclude : ['src/**'],
           setupFiles : ['./vitest-setup.ts'],
+        },
+      },
+      {
+        extends : './vite.config.ts',
+        test : {
+          name : 'browser',
+          include : ['**/*.svelte.spec.{js,ts}'],
+          css : true,
+          browser : {
+            enabled : true,
+            provider : 'playwright',
+            instances : [{ browser : 'chromium' }],
+          },
+          setupFiles : [
+            './vitest-setup.ts',
+            './vitest-setup-client.ts',
+          ],
         },
       },
     ],
