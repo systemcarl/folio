@@ -1,6 +1,9 @@
 import { beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
 import type { Snippet } from 'svelte';
-import { render } from '@testing-library/svelte';
+import { render, within } from '@testing-library/svelte';
+
+import { makeComponent, wrapOriginal } from '$lib/tests/component';
+import Page from '$lib/materials/page.svelte';
 
 import Layout from './+layout.svelte';
 
@@ -39,11 +42,17 @@ vi.mock('$lib/hooks/useGraphics', async (original) => {
   };
 });
 
+vi.mock('$lib/materials/page.svelte', async original => ({
+  default : await wrapOriginal(original, { testId : 'page' }),
+}));
+
 const data = {
   locale : {},
   themes : {},
   graphics : { graphic : '<svg></svg>' },
 };
+
+const TestContent = makeComponent({ testId : 'content' });
 
 beforeEach(() => { vi.clearAllMocks(); });
 afterAll(() => { vi.restoreAllMocks(); });
@@ -78,5 +87,16 @@ describe('/+layout.svelte', () => {
       children : ((() => {}) as Snippet<[]>),
     });
     expect(setGraphicsMock).toHaveBeenCalledWith(expected);
+  });
+});
+
+describe('/+layout.svelte render', () => {
+  it('wraps content in page', () => {
+    const { container } = render(Layout, { data, children : TestContent });
+
+    const page = within(container).queryByTestId('page') as HTMLElement;
+    expect(page).toBeInTheDocument();
+    expect(within(page).queryByTestId('content')).toBeInTheDocument();
+    expect(Page).toHaveBeenCalledOnce();
   });
 });

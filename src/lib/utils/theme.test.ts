@@ -1022,6 +1022,60 @@ describe('getSection scale', () => {
     const section = getSection(theme);
     expect(section.scale).toEqual(expect.objectContaining(expectedScale));
   });
+
+  it('returns default theme inset if inset unset', () => {
+    const theme = {
+      ...testTheme,
+      scales : {
+        ...testTheme.scales,
+        [testTheme.sections.default.scale] : {
+          ...testTheme.scales[testTheme.sections.default.scale],
+          inset : undefined,
+        },
+      },
+    };
+    const expectedSection =
+      { inset : defaultThemes.default.scales.default.inset };
+    const section = getSection(theme);
+    expect(section.scale)
+      .toEqual(expect.objectContaining(expectedSection));
+  });
+
+  it('returns default theme spacing if spacing unset', () => {
+    const theme = {
+      ...testTheme,
+      scales : {
+        ...testTheme.scales,
+        [testTheme.sections.default.scale] : {
+          ...testTheme.scales[testTheme.sections.default.scale],
+          spacing : undefined,
+        },
+      },
+    };
+    const expectedSection =
+      { spacing : defaultThemes.default.scales.default.spacing };
+    const section = getSection(theme);
+    expect(section.scale)
+      .toEqual(expect.objectContaining(expectedSection));
+  });
+
+  it('returns default theme font size if font size unset', () => {
+    const theme = {
+      ...testTheme,
+      scales : {
+        ...testTheme.scales,
+        [testTheme.sections.default.scale] : {
+          ...testTheme.scales[testTheme.sections.default.scale],
+          fontSize : undefined,
+        },
+      },
+    };
+    const expectedSection =
+      { fontSize : defaultThemes.default.scales.default.fontSize };
+    const section = getSection(theme);
+    expect(section.scale)
+      .toEqual(expect.objectContaining(expectedSection));
+  });
 });
 
 describe('getSection background', () => {

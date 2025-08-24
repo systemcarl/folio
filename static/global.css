@@ -1,4 +1,88 @@
+* {
+  box-sizing: border-box;
+
+  --z-background: -10;
+  --z-background-image: -5;
+  --z-graphic: -1;
+}
+
+:root {
+  --title-graphic-top: 4rem;
+  --title-graphic-right: -2rem;
+  --title-graphic-size: 10rem;
+}
+
 body {
+  max-width: 100vw;
   margin: 0;
+  overflow: hidden;
   background-color: var(--bg-colour, #fff);
+}
+
+h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
+}
+
+.background {
+  z-index: var(--z-background);
+  flex-grow: 1;
+  overflow: hidden;
+  background-color: var(--bg-colour);
+  background-image: var(--bg-img);
+  background-size: var(--bg-size);
+  background-repeat: var(--bg-repeat);
+}
+
+.graphic {
+  position: relative;
+  z-index: var(--z-graphic);
+  width: 100%;
+  height: 100%;
+}
+
+.background .graphic {
+  z-index: var(--z-background-image);
+}
+
+svg {
+  width: 100%;
+  height: 100%;
+}
+
+.text {
+  max-width: 100%;
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  font-weight: var(--font-weight);
+  font-style: var(--font-style);
+  line-height: var(--line-height);
+  letter-spacing: var(--letter-spacing);
+  text-decoration: var(--text-decoration);
+  white-space: pre-wrap;
+  color: var(--text-colour);
+  text-shadow: var(--text-shadow);
+}
+
+.text-centred {
+  text-align: var(--text-centred, center);
+}
+
+.text-inset {
+  padding-left: var(--padding-inset);
+  padding-right: var(--padding-inset);
+}
+
+.text-flex {
+  width: var(--text-flex-width, fit-content);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --text-centred: left;
+    --text-flex-width: min-content;
+    --title-graphic-top: 4rem;
+    --title-graphic-right: -2rem;
+    --title-graphic-size: 6rem;
+    --title-graphic-shift: 1;
+  }
 }

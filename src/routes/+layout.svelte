@@ -2,6 +2,7 @@
   import useLocale from '$lib/hooks/useLocale';
   import useThemes from '$lib/hooks/useThemes';
   import useGraphics from '$lib/hooks/useGraphics';
+  import Page from '$lib/materials/page.svelte';
 
   const { data, children } = $props();
 
@@ -14,4 +15,6 @@
   setGraphics(data.graphics);
 </script>
 
-{@render children()}
+<Page>
+  {@render children()}
+</Page>

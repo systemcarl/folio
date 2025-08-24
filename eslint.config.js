@@ -51,6 +51,7 @@ export default ts.config(
           caughtErrorsIgnorePattern : '^_',
         },
       ],
+      'svelte/no-at-html-tags' : 'off',
       'no-undef' : 'off',
     },
   },

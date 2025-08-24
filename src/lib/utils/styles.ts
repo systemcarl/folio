@@ -37,6 +37,8 @@ function compileSection(classes : string[], section : Section) {
       .map(([key, value]) => [`--scale-${key}`, value])),
     ...Object.fromEntries(Object.entries(section.palette)
       .map(([key, value]) => [`--colour-${key}`, value])),
+    '--padding-inset' : section.scale.inset,
+    '--layout-spacing' : section.scale.spacing,
     '--bg-colour' : section.background.fill ?? 'transparent',
     '--bg-img' : section.background.img?.src
       ? `url('${section.background.img.src}')`

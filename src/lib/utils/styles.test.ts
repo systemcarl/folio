@@ -13,7 +13,12 @@ const testThemes = { test : {} };
 
 const testSection = vi.hoisted(() => ({
   palette : { test : '#111111' },
-  scale : { test : 'testSize' },
+  scale : {
+    inset : 'testInset',
+    spacing : 'testSpacing',
+    fontSize : 'testFontSize',
+    test : 'testSize',
+  },
   background : {
     fill : '#111111',
     img : {
@@ -183,6 +188,21 @@ describe('compileStyles', () => {
     const block2 = matchBlock(styles, { section : 'section2' });
     expect(block1).toHaveLength(1);
     expect(block2).toHaveLength(1);
+  });
+
+  it('returns compiled padding inset', () => {
+    const styles = compileStyles(testThemes);
+
+    const block = matchBlock(styles);
+    expect(block?.[0]).contains(`--padding-inset: ${testSection.scale.inset};`);
+  });
+
+  it('returns compiled layout spacing', () => {
+    const styles = compileStyles(testThemes);
+
+    const block = matchBlock(styles);
+    expect(block?.[0])
+      .contains(`--layout-spacing: ${testSection.scale.spacing};`);
   });
 
   it('returns compiled background colour', () => {

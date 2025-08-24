@@ -13,7 +13,12 @@ export interface Section {
 
 export type Palette = Record<string, string>;
 
-export type Scale = Record<string, string>;
+export type Scale = {
+  inset : string;
+  spacing : string;
+  fontSize : string;
+  [key : string] : string;
+};
 
 export interface Font {
   family : string;
@@ -67,6 +72,8 @@ export const defaultTheme = {
   },
   scales : {
     default : {
+      inset : '2rem',
+      spacing : '4rem',
       fontSize : '1rem',
     },
   },
@@ -192,6 +199,12 @@ function makeScale(scale : unknown) : Scale {
       delete scl[key];
     }
   }
+
+  if (scl.inset === undefined) scl.inset = defaultTheme.scales.default.inset;
+  if (scl.spacing === undefined)
+    scl.spacing = defaultTheme.scales.default.spacing;
+  if (scl.fontSize === undefined)
+    scl.fontSize = defaultTheme.scales.default.fontSize;
   return scl;
 }
 
