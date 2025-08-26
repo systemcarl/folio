@@ -68,6 +68,12 @@ teardown() {
     assert_mock_called_once load_env
 }
 
+@test "loads specified environment" {
+    run deploy --local --environment test
+    assert_success
+    assert_mock_called_once load_env --environment test
+}
+
 @test "prints environment fingerprint when verbose" {
     setup_remote_env
     run deploy <<< "y" --verbose

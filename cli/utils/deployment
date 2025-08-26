@@ -41,7 +41,7 @@ deployment_usage() {
 }
 
 parse_environment_args() {
-    load_env
+    load_env "$@"
 
     local loc=false
     local custom_domain=false

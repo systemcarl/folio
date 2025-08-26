@@ -12,6 +12,7 @@ setup() {
     bats_load_library bats-assert
     setup_mocks
 
+    mock source
     mock npm
 
     node() {
@@ -115,145 +116,179 @@ teardown() {
 
 @test "uses environment variable" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$ENVIRONMENT" "test"
 }
 
 @test "uses environment domain" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_APP_DOMAIN" "example.test"
 }
 
 @test "uses environment DNS zone" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_CF_DNS_ZONE" "test1234"
 }
 
 @test "uses environment SSH port" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_SSH_PORT" "2222"
 }
 
 @test "uses environment ACME email" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_ACME_EMAIL" "example@example.com"
 }
 
 @test "uses environment SSH key ID" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_SSH_KEY_ID" "1234"
 }
 
 @test "uses environment public key file" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_PUBLIC_KEY_FILE" "/path/to/test_key.pub"
 }
 
 @test "uses environment GCS credentials" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_GCS_CREDENTIALS" "/path/to/test_gcs_creds.json"
 }
 
 @test "uses environment Cloudflare token" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_CF_TOKEN" "cf_test"
 }
 
 @test "uses environment DigitalOcean token" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_DO_TOKEN" "do_test"
 }
 
 @test "uses environment GitHub token" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_GH_TOKEN" "gh_test"
 }
 
 @test "uses environment GitHub Packages token" {
     setup_env
-    load_env --env-file ""
+    load_env
     assert_equal "$FOLIO_GHPR_TOKEN" "ghpr_test"
 }
 
+@test "loads general environment file" {
+    source() {
+        log_mock_call source "$@"
+        if [[ "$1" != *.env ]]; then return 1; fi
+    }
+    load_env
+    assert_mock_called_once source "/code/.env"
+}
+
+@test "loads environment specific file" {
+    ENVIRONMENT="test"
+    load_env
+    assert_mock_called_once source "/code/.env.test"
+    assert_mock_not_called source "/code/.env"
+}
+
+@test "loads specified environment specific file" {
+    load_env --environment test
+    assert_mock_called_once source "/code/.env.test"
+    assert_mock_not_called source "/code/.env"
+}
+
 @test "loads environment file variable" {
+    source() { ENVIRONMENT="env"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$ENVIRONMENT" "env"
 }
 
 @test "loads environment file domain" {
+    source() { FOLIO_APP_DOMAIN="example.env"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_APP_DOMAIN" "example.env"
 }
 
 @test "loads environment file DNS zone" {
+    source() { FOLIO_CF_DNS_ZONE="env123"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_CF_DNS_ZONE" "env123"
 }
 
 @test "loads environment file SSH port" {
+    source() { FOLIO_SSH_PORT="2233"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_SSH_PORT" "2233"
 }
 
 @test "loads environment file ACME email" {
+    source() { FOLIO_ACME_EMAIL="env@example.com"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_ACME_EMAIL" "env@example.com"
 }
 
 @test "loads environment file SSH key ID" {
+    source() { FOLIO_SSH_KEY_ID="2345"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_SSH_KEY_ID" "2345"
 }
 
 @test "loads environment file public key file" {
+    source() { FOLIO_PUBLIC_KEY_FILE="/path/to/env_key.pub"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_PUBLIC_KEY_FILE" "/path/to/env_key.pub"
 }
 
 @test "loads environment file GCS credentials" {
+    source() { FOLIO_GCS_CREDENTIALS="/path/to/env_creds.json"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_GCS_CREDENTIALS" "/path/to/env_creds.json"
 }
 
 @test "loads environment file Cloudflare token" {
+    source() { FOLIO_CF_TOKEN="cf_env"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_CF_TOKEN" "cf_env"
 }
 
 @test "loads environment file DigitalOcean token" {
+    source() { FOLIO_DO_TOKEN="do_env"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_DO_TOKEN" "do_env"
 }
 
 @test "loads environment file GitHub token" {
+    source() { FOLIO_GH_TOKEN="gh_env"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_GH_TOKEN" "gh_env"
 }
 
 @test "loads environment file GitHub Packages token" {
+    source() { FOLIO_GHPR_TOKEN="ghpr_env"; }
     setup_env
-    load_env --env-file "cli/tests/test.env"
+    load_env
     assert_equal "$FOLIO_GHPR_TOKEN" "ghpr_env"
 }
 

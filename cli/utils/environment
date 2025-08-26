@@ -3,17 +3,28 @@ source "$(dirname "${BASH_SOURCE[0]}")/repo"
 load_env() {
     if [[ "$ENV_LOADED" == "true" ]]; then return 0; fi
 
-    local ENV_FILE="$(dirname "${BASH_SOURCE[0]}")/../../.env"
+    local ENV_FILE
     while [[ "$*" != "" ]]; do
         case $1 in
-            --env-file ) ENV_FILE="$2"; shift;;
-            * ) echo "Invalid option: $1"; return 1;;
+            --environment ) ENVIRONMENT="$2"; shift;;
         esac
         shift
     done
 
-    if [[ "$ENV_FILE" != "" ]] && [[ -f "$ENV_FILE" ]]; then
-        source "$ENV_FILE" || return 1
+    ENVIRONMENT="${ENVIRONMENT:-production}"
+
+    if [[ "$ENV_FILE" != "" ]]; then
+        if ! source "$ENV_FILE" 2> /dev/null; then
+            echo "Error: Unable to load environment file: $ENV_FILE"
+            return 1
+        fi
+    else
+        ENV_FILE="$(realpath "$(dirname \
+            "${BASH_SOURCE[0]}")/../../.env.$ENVIRONMENT")"
+        if ! source "$ENV_FILE" 2> /dev/null; then
+            ENV_FILE="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../../.env")"
+            source "$ENV_FILE" 2> /dev/null
+        fi
     fi
 
     cd app || return 1
@@ -34,7 +45,6 @@ load_env() {
         return 1
     fi
 
-    ENVIRONMENT="${ENVIRONMENT:-production}"
     FOLIO_APP_ACCOUNT="${FOLIO_APP_ACCOUNT:-$app_account}"
     FOLIO_APP_REPO="${FOLIO_APP_REPO:-$app_repo}"
     FOLIO_CICD_ACCOUNT="${FOLIO_CICD_ACCOUNT:-$cicd_account}"
