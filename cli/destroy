@@ -45,6 +45,7 @@ destroy() {
             -var "ssh_port=$FOLIO_SSH_PORT" \
             -var "acme_email=$FOLIO_ACME_EMAIL" \
             -var "ssh_key_id=$FOLIO_SSH_KEY_ID" \
+            -var "ssh_private_key_file=$FOLIO_PRIVATE_KEY_FILE" \
             -var "ssh_public_key_file=$FOLIO_PUBLIC_KEY_FILE" \
             -var "cf_token=$FOLIO_CF_TOKEN" \
             -var "do_token=$FOLIO_DO_TOKEN"
@@ -74,6 +75,23 @@ destroy() {
         return 0
     fi
 
+    if [[ -n "$(docker ps -q -f name=folio-caddy)" ]]; then
+        echo "Stopping and removing the Caddy container..."
+        docker stop folio-caddy > /dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to stop the application container."
+            return 1
+        fi
+        docker rm folio-caddy > /dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to stop and remove the Caddy container."
+            return 1
+        fi
+        echo "Caddy container stopped and removed successfully."
+    else
+        echo "No running Caddy container found."
+    fi
+
     if [[ -n "$(docker ps -q -f name=folio)" ]]; then
         echo "Stopping and removing the application container..."
         docker stop folio > /dev/null
@@ -89,5 +107,17 @@ destroy() {
         echo "Application container stopped and removed successfully."
     else
         echo "No running application container found."
+    fi
+
+    if [[ -n "$(docker network ls -q -f name=folio-net)" ]]; then
+        echo "Removing Docker network..."
+        docker network rm folio-net > /dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to remove Docker network."
+            return 1
+        fi
+        echo "Docker network removed successfully."
+    else
+        echo "No Docker network found."
     fi
 }

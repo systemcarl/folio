@@ -1,3 +1,6 @@
 [submodule "blank"]
 	path = app
 	url = https://github.com/systemcarl/blank.git
+[submodule "assets"]
+	path = assets
+	url = https://github.com/systemcarl/folio-assets.git

@@ -17,9 +17,11 @@ variables {
     domain = "app.example.com"
     dns_zone = "abc123"
     ssh_key_id = 1234
-    ssh_public_key_file = "tests/.pub"
+    ssh_private_key_file = "tests/key"
+    ssh_public_key_file = "tests/key.pub"
     cf_token = "abcde12345abcde12345abcde12345abcde12345"
     do_token = "12345abcde12345abcde12345abcde12345abcde"
+    is_test = true
 }
 
 run "assigns_reserved_ip_to_droplet_id" {

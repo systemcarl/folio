@@ -8,6 +8,9 @@ setup() {
     bats_load_library bats-assert
     setup_mocks
 
+    sleep() { log_mock_call sleep $@; return 1; }
+    test() { log_mock_call test "$@"; return 1; }
+
     mock apt
     apt-get() {
         log_mock_call apt-get "$@"
@@ -29,19 +32,10 @@ setup() {
             while IFS= read -r line; do input+="$line"$'\n'; done
         fi
         log_mock_call tee "$@" "$input"
-        if [[ " $* " == *" /home/app/Caddyfile "* ]]; then
-            if [[ " $* " == *" -a "* ]]; then
-                local caddyfile=$(get_mock_state "caddyfile" \
-                    | command sed 's/^"//;s/"$//')
-                set_mock_state "caddyfile" "$caddyfile"
-                set_mock_state "caddyfile" "$caddyfile"$'\n'"$input"
-            else
-                set_mock_state "caddyfile" "$input"
-            fi
-        fi
     }
 
     mock mkdir
+    mock cp
     mock chmod
     mock chown
     mock rm
@@ -184,44 +178,82 @@ teardown() {
     assert_mock_called_once chmod 600 /home/app/.ssh/authorized_keys
 }
 
-@test "configures Caddy" {
+@test "checks static files provisioned before copying" {
     run cloud_init
     assert_success
-    assert_mock_called_once chown app:app /home/app/Caddyfile
-    assert_mock_state "caddyfile" \
-        "example.com { \
-            reverse_proxy folio:3000 \
-        }"
+    assert_mocks_called_in_order \
+        test ! -d /root/static -- \
+        cp -r /root/static /home/app/static
 }
 
-@test "configures Caddy with ACME email" {
-    acme_email="example@example.com"
+@test "changes ownership of static files" {
     run cloud_init
     assert_success
-    assert_mock_state "caddyfile" \
-        "{ \
-            email example@example.com \
-        } \
-          \
-        example.com { \
-            reverse_proxy folio:3000 \
-        }"
+    assert_mocks_called_in_order \
+        cp -r /root/static /home/app/static -- \
+        chown -R app:app /home/app/static
 }
 
-@test "configures Caddy with staging ACME server" {
-    environment="staging"
-    acme_email="example@example.com"
+@test "does not start caddy if static files not provisioned" {
+    test() {
+        log_mock_call test "$@"
+        if [[ " $* " == *" /root/static "* ]]; then return 0; fi
+    }
+    run cloud_init
+    assert_failure
+    assert_mock_not_called su - app
+}
+
+@test "checks Caddyfile provisioned before copying" {
     run cloud_init
     assert_success
-    assert_mock_state "caddyfile" \
-        "{ \
-            email example@example.com \
-            acme_ca https://acme-staging-v02.api.letsencrypt.org/directory \
-        } \
-          \
-        ${hostname} { \
-            reverse_proxy folio:3000 \
-        }"
+    assert_mocks_called_in_order \
+        test ! -f /root/Caddyfile -- \
+        cp /root/Caddyfile /home/app/Caddyfile
+}
+
+@test "changes ownership of Caddyfile" {
+    run cloud_init
+    assert_success
+    assert_mocks_called_in_order \
+        cp /root/Caddyfile /home/app/Caddyfile -- \
+        chown app:app /home/app/Caddyfile
+}
+
+@test "does not start caddy if Caddyfile not provisioned" {
+    test() {
+        log_mock_call test "$@"
+        if [[ " $* " == *" /root/Caddyfile "* ]]; then return 0; fi
+    }
+    run cloud_init
+    assert_failure
+    assert_mock_not_called su - app
+}
+
+@test "checks app environment file provisioned before copying" {
+    run cloud_init
+    assert_success
+    assert_mocks_called_in_order \
+        test ! -f /root/.env -- \
+        cp /root/.env /home/app/.env
+}
+
+@test "changes ownership of app environment file" {
+    run cloud_init
+    assert_success
+    assert_mocks_called_in_order \
+        cp /root/.env /home/app/.env -- \
+        chown app:app /home/app/.env
+}
+
+@test "does not start application if static files not provisioned" {
+    test() {
+        log_mock_call test "$@"
+        if [[ " $* " == *" /root/.env "* ]]; then return 0; fi
+    }
+    run cloud_init
+    assert_failure
+    assert_mock_not_called su - app
 }
 
 @test "starts Caddy container" {
@@ -236,6 +268,7 @@ teardown() {
             -p 80:80 \
             -p 443:443 \
             -v /home/app/Caddyfile:/etc/caddy/Caddyfile \
+            -v /home/app/static:/srv/static \
             caddy:latest"
 }
 
@@ -247,5 +280,6 @@ teardown() {
         su - app -c "docker run -d \
             --name folio \
             --network web \
+            --env-file /home/app/.env \
             app-package"
 }

@@ -29,6 +29,22 @@ locals {
             ? var.app_version
             : jsondecode(file("${path.module}/../app/package.json")).version
     )
+
+    env_file = templatefile("${path.module}/.env.tftpl", {
+        domain = var.domain,
+    })
+    env_check = sha256(local.env_file)
+
+    caddyfile = templatefile("${path.module}/Caddyfile.tftpl", {
+        environment = var.environment,
+        hostname = var.domain,
+        acme_email = var.acme_email,
+    })
+    caddyfile_check = sha256(local.caddyfile)
+
+    assets_check = sha256(join(" ",
+         sort(fileset("${path.module}/../assets/", "**"))
+    ))
 }
 
 resource "digitalocean_droplet" "app" {
@@ -52,6 +68,54 @@ resource "digitalocean_droplet" "app" {
         }
     )
     tags = ["${var.app_package}", "${var.environment}"]
+}
+
+resource "null_resource" "upload" {
+    count = var.is_test ? 0 : 1
+
+    triggers = {
+        droplet_id = digitalocean_droplet.app.id
+    }
+
+    connection {
+        host = digitalocean_droplet.app.ipv4_address
+        user = "root"
+        private_key = file(var.ssh_private_key_file)
+    }
+
+    provisioner "file" {
+        content = local.env_file
+        destination = "/root/.env"
+    }
+
+    provisioner "file" {
+        content = local.caddyfile
+        destination = "/root/Caddyfile"
+    }
+
+    provisioner "file" {
+        source = "${path.module}/../assets"
+        destination = "/root/static/"
+    }
+
+    provisioner "file" {
+        content = templatefile("${path.module}/checksum.tftpl", {
+            env_check = local.env_check,
+            caddyfile_check = local.caddyfile_check,
+            assets_check = local.assets_check
+        })
+        destination = "/root/checksum"
+    }
+
+    provisioner "remote-exec" {
+        inline = [
+            "if [ ! -f /root/checksum ]; then",
+                "echo 'checksum not found'; exit 1;",
+            "fi",
+            "chmod +x /root/checksum",
+            "bash /root/checksum || exit 1",
+        ]
+    }
 }
 
 resource "digitalocean_reserved_ip" "app_ip" {

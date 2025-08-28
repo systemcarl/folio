@@ -1,9 +1,18 @@
 source "$(dirname "${BASH_SOURCE[0]}")/repo"
 
+resolve_path() {
+    local os="$(uname -s)"
+    if [[ "$os" == "MINGW"* || "$os" == "MSYS"* || "$os" == "CYGWIN"* ]]; then
+        cygpath -w "$1"
+        return $?
+    fi
+    echo "$1"
+    return 0
+}
+
 load_env() {
     if [[ "$ENV_LOADED" == "true" ]]; then return 0; fi
 
-    local ENV_FILE
     while [[ "$*" != "" ]]; do
         case $1 in
             --environment ) ENVIRONMENT="$2"; shift;;
@@ -13,18 +22,11 @@ load_env() {
 
     ENVIRONMENT="${ENVIRONMENT:-production}"
 
-    if [[ "$ENV_FILE" != "" ]]; then
-        if ! source "$ENV_FILE" 2> /dev/null; then
-            echo "Error: Unable to load environment file: $ENV_FILE"
-            return 1
-        fi
-    else
-        ENV_FILE="$(realpath "$(dirname \
-            "${BASH_SOURCE[0]}")/../../.env.$ENVIRONMENT")"
-        if ! source "$ENV_FILE" 2> /dev/null; then
-            ENV_FILE="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../../.env")"
-            source "$ENV_FILE" 2> /dev/null
-        fi
+    ENV_FILE="$(realpath "$(dirname \
+        "${BASH_SOURCE[0]}")/../../.env.$ENVIRONMENT")"
+    if ! source "$ENV_FILE" 2> /dev/null; then
+        ENV_FILE="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../../.env")"
+        if ! source "$ENV_FILE" 2> /dev/null; then ENV_FILE=""; fi
     fi
 
     cd app || return 1
@@ -71,6 +73,7 @@ fingerprint_env() {
     env_string+="FOLIO_SSH_PORT=$FOLIO_SSH_PORT;"
     env_string+="FOLIO_ACME_EMAIL=$FOLIO_ACME_EMAIL;"
     env_string+="FOLIO_SSH_KEY_ID=$FOLIO_SSH_KEY_ID;"
+    env_string+="FOLIO_PRIVATE_KEY_FILE=$FOLIO_PRIVATE_KEY_FILE;"
     env_string+="FOLIO_PUBLIC_KEY_FILE=$FOLIO_PUBLIC_KEY_FILE;"
     env_string+="FOLIO_CF_TOKEN=$FOLIO_CF_TOKEN;"
     env_string+="FOLIO_DO_TOKEN=$FOLIO_DO_TOKEN;"

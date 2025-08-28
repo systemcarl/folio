@@ -9,12 +9,10 @@ setup() {
     bats_load_library bats-assert
     setup_mocks
 
-    uname() { log_mock_call uname "$@" ;echo $(get_mock_state os); }
-    pwd() { log_mock_call pwd "$@"; echo $(get_mock_state project_root); }
-    cygpath() {
-        log_mock_call cygpath "$@";
-        echo $(get_mock_state windows_project_root);
-    }
+    root_dir=root
+    dir_prefix=platform
+
+    pwd() { log_mock_call pwd "$@"; echo "$root_dir"; }
 
     mock docker
     mock terraform
@@ -25,9 +23,7 @@ setup() {
         echo 'none';
     }
 
-    set_mock_state os "Linux"
-    set_mock_state project_root "/c/"
-    set_mock_state windows_project_root "C:\\"
+    resolve_path () { log_mock_call resolve_path "$@"; echo "$dir_prefix/$1"; }
 
     mock load_env
 
@@ -338,6 +334,15 @@ teardown() {
     assert_mock_called_once destroy --test --approve --domain "example.test"
 }
 
+@test "deploys test application with private key" {
+    run test --private-key "path/to/private/key"
+    assert_success
+    assert_mock_called_once deploy --test --approve \
+        --private-key "path/to/private/key"
+    assert_mock_called_once destroy --test --approve \
+        --private-key "path/to/private/key"
+}
+
 @test "deploys test application with public key" {
     run test --public-key "path/to/public/key"
     assert_success
@@ -391,63 +396,10 @@ teardown() {
     assert_output --partial "Running tests in non-interactive mode."
 }
 
-@test "mounts Unix project root in Docker container" {
-    set_mock_state project_root "/c/code"
+@test "mounts platform-specific project root in Docker container" {
     run test
-    assert_success
     assert_mock_called_times 2 \
-        docker run -v "/c/code:/code"
-}
-
-@test "converts Unix project root to MinGW path" {
-    set_mock_state os "MINGW64_NT-10.0"
-    set_mock_state project_root "/c/code"
-    run test
-    assert_success
-    assert_mock_called_once cygpath -w
-}
-
-@test "mounts MinGW project root in Docker container" {
-    set_mock_state os "MINGW64_NT-10.0"
-    set_mock_state windows_project_root "C:\\code"
-    run test
-    assert_success
-    assert_mock_called_times 2 \
-        docker run -v "C:\\code:/code"
-}
-
-@test "converts Unix project root to MSYS path" {
-    set_mock_state os "MSYS_NT-10.0"
-    set_mock_state project_root "/c/code"
-    run test
-    assert_success
-    assert_mock_called_once cygpath -w
-}
-
-@test "mounts MSYS project root in Docker container" {
-    set_mock_state os "MSYS_NT-10.0"
-    set_mock_state windows_project_root "C:\\code"
-    run test
-    assert_success
-    assert_mock_called_times 2 \
-        docker run -v "C:\\code:/code"
-}
-
-@test "converts Unix project root to Cygwin path" {
-    set_mock_state os "CYGWIN_NT-10.0"
-    set_mock_state project_root "/c/code"
-    run test
-    assert_success
-    assert_mock_called_once cygpath -w
-}
-
-@test "mounts Cygwin project root in Docker container" {
-    set_mock_state os "CYGWIN_NT-10.0"
-    set_mock_state windows_project_root "C:\\code"
-    run test
-    assert_success
-    assert_mock_called_times 2 \
-        docker run -v "C:\\code:/code"
+        docker run -v "$dir_prefix/$root_dir:/code"
 }
 
 @test "sets commit status to 'failure' after failing tests" {

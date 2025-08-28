@@ -10,6 +10,11 @@ setup() {
     bats_load_library bats-assert
     setup_mocks
 
+    root_dir=root
+    dir_prefix=platform
+
+    pwd() { log_mock_call pwd "$@"; echo "$root_dir"; }
+
     mock terraform
 
     docker() {
@@ -31,6 +36,8 @@ setup() {
         echo "1.2.3"
     }
 
+    resolve_path() { log_mock_call resolve_path "$@"; echo "$dir_prefix/$1"; }
+
     mock load_env
 
     FOLIO_CICD_ACCOUNT="cicd-account"
@@ -45,6 +52,7 @@ setup_remote_env() {
     FOLIO_SSH_PORT="22"
     FOLIO_SSH_KEY_ID="1234"
     FOLIO_ACME_EMAIL="example@example.com"
+    FOLIO_PRIVATE_KEY_FILE="/path/to/private_key"
     FOLIO_PUBLIC_KEY_FILE="/path/to/public_key.pub"
     FOLIO_CF_TOKEN="cf_token"
     FOLIO_DO_TOKEN="do_token"
@@ -137,17 +145,37 @@ teardown() {
         containerize -- \
         docker run -d \
             --name "folio" \
-            -p "3000:3000" \
+            --network folio-net \
+            --env-file "$dir_prefix/$root_dir/app.env" \
             "cicd-repo:1.2.3"
 }
 
-@test "deploys local Docker image to local container" {
+@test "creates local docker network" {
+    run deploy --local
+    assert_success
+    assert_mock_called_once docker network create folio-net
+}
+
+@test "deploys local Caddy server" {
+    run deploy --local
+    assert_success
+    assert_mock_called_once docker run -d \
+        --name "folio-caddy" \
+        -p "3000:80" \
+        -v "$dir_prefix/$root_dir/Caddyfile:/etc/caddy/Caddyfile" \
+        -v "$dir_prefix/$root_dir/assets:/srv/static" \
+        --network folio-net \
+        caddy:latest
+}
+
+@test "deploys local application image to local container" {
     set_mock_state has_image true
     run deploy --local
     assert_success
     assert_mock_called_once docker run -d \
         --name "folio" \
-        -p "3000:3000" \
+        --network folio-net \
+        --env-file "$dir_prefix/$root_dir/app.env" \
         "cicd-repo:1.2.3"
 }
 
@@ -160,14 +188,14 @@ teardown() {
         "test-package:1.2.3"
 }
 
-@test "does not pull remote Docker image if local image exists" {
+@test "does not pull remote application image if local image exists" {
     set_mock_state has_image true
     run deploy --local
     assert_success
     assert_mock_not_called docker pull
 }
 
-@test "pulls remote Docker image if local image does not exist" {
+@test "pulls remote application image if local image does not exist" {
     set_mock_state has_image false
     run deploy --local
     assert_success
@@ -175,7 +203,7 @@ teardown() {
         "ghcr.io/cicd-account/cicd-repo:1.2.3"
 }
 
-@test "pulls remote Docker image from namespace" {
+@test "pulls remote application image from namespace" {
     FOLIO_CICD_ACCOUNT="test-account"
     set_mock_state has_image false
     run deploy --local
@@ -193,7 +221,7 @@ teardown() {
         "ghcr.io/cicd-account/test-package:1.2.3"
 }
 
-@test "pulls remote Docker image before deploying" {
+@test "pulls remote application image before deploying" {
     set_mock_state has_image false
     run deploy --local
     assert_success
@@ -201,17 +229,17 @@ teardown() {
         docker pull "ghcr.io/cicd-account/cicd-repo:1.2.3" -- \
         docker run -d \
             --name "folio" \
-            -p "3000:3000" \
+            --network folio-net \
+            --env-file "$dir_prefix/$root_dir/app.env" \
             "ghcr.io/cicd-account/cicd-repo:1.2.3"
 }
 
-@test "deploys remote Docker image to local container" {
+@test "deploys remote application image to local container" {
     set_mock_state has_image false
     run deploy --local
     assert_success
     assert_mock_called_once docker run -d \
         --name "folio" \
-        -p "3000:3000" \
         "ghcr.io/cicd-account/cicd-repo:1.2.3"
 }
 
@@ -223,7 +251,6 @@ teardown() {
     assert_success
     assert_mock_called_once docker run -d \
         --name "folio" \
-        -p "3000:3000" \
         "ghcr.io/test-account/test-package:1.2.3"
 }
 
@@ -286,6 +313,15 @@ teardown() {
     assert_failure
     assert_output --partial \
         "Error: SSH key ID required for non-local deployment."
+}
+
+@test "requires private key file to deploy remotely" {
+    setup_remote_env
+    unset FOLIO_PRIVATE_KEY_FILE
+    run deploy <<< "y"
+    assert_failure
+    assert_output --partial \
+        "Error: Private key file required for non-local deployment."
 }
 
 @test "requires public key file to deploy remotely" {
@@ -369,6 +405,14 @@ teardown() {
     setup_remote_env
     unset FOLIO_SSH_KEY_ID
     run deploy <<< "y" --ssh-key-id "1234"
+    assert_success
+    assert_output --partial "Deployment of production completed successfully."
+}
+
+@test "accepts private key file as option" {
+    setup_remote_env
+    unset FOLIO_PRIVATE_KEY_FILE
+    run deploy <<< "y" --private-key "/path/to/private_key"
     assert_success
     assert_output --partial "Deployment of production completed successfully."
 }
@@ -577,6 +621,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"
@@ -591,6 +636,7 @@ teardown() {
         --ssh-port "2222" \
         --ssh-key-id "2345" \
         --email "test@example.com" \
+        --private-key "/path/to/test_key" \
         --public-key "/path/to/test_key.pub" \
         --cf-token "test_token" \
         --do-token "test_token"
@@ -606,6 +652,7 @@ teardown() {
         -var "ssh_port=2222" \
         -var "acme_email=test@example.com" \
         -var "ssh_key_id=2345" \
+        -var "ssh_private_key_file=/path/to/test_key" \
         -var "ssh_public_key_file=/path/to/test_key.pub" \
         -var "cf_token=test_token" \
         -var "do_token=test_token"
@@ -626,6 +673,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"
@@ -646,6 +694,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"
@@ -666,6 +715,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"
@@ -686,6 +736,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"

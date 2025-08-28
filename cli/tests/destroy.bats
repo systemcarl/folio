@@ -14,8 +14,16 @@ setup() {
 
     docker() {
         log_mock_call docker "$@"
-        if [[ "$1" == "ps" ]]; then
-            if [[ $(get_mock_state "container_running") != "false" ]]; then
+        if [[ "$1" == "ps" ]] && [[ " $* " == *" name=folio "* ]]; then
+            if [[ $(get_mock_state "app_running") != "false" ]]; then
+                echo "123456789abc"
+            fi
+        elif [[ "$1" == "ps" ]] && [[ " $* " == *" name=folio-caddy "* ]]; then
+            if [[ $(get_mock_state "caddy_running") != "false" ]]; then
+                echo "123456789abc"
+            fi
+        elif [[ "$1" == "network" ]]; then
+            if [[ $(get_mock_state "network_running") != "false" ]]; then
                 echo "123456789abc"
             fi
         fi
@@ -40,6 +48,7 @@ setup_remote_env() {
     FOLIO_SSH_PORT="22"
     FOLIO_ACME_EMAIL="example@example.com"
     FOLIO_SSH_KEY_ID="1234"
+    FOLIO_PRIVATE_KEY_FILE="/path/to/private_key"
     FOLIO_PUBLIC_KEY_FILE="/path/to/public_key.pub"
     FOLIO_CF_TOKEN="cf_token"
     FOLIO_DO_TOKEN="do_token"
@@ -75,27 +84,61 @@ teardown() {
     assert_output --partial "$(fingerprint_env)"
 }
 
-@test "does not stop container if no local container" {
-    set_mock_state container_running false
+@test "does not stop Caddy container if no local container" {
+    set_mock_state caddy_running false
     run destroy --local
     assert_success
-    assert_mock_not_called docker stop
+    assert_mock_not_called docker stop folio-caddy
 }
 
-@test "does not remove container if no local container" {
-    set_mock_state container_running false
+@test "does not remove Caddy container if no local container" {
+    set_mock_state caddy_running false
     run destroy --local
     assert_success
-    assert_mock_not_called docker rm
+    assert_mock_not_called docker rm folio-caddy
 }
 
-@test "stops local container" {
+@test "stops local Caddy container" {
+    run destroy --local
+    assert_success
+    assert_mock_called_once docker stop folio-caddy
+}
+
+@test "stops Caddy container before removing" {
+    run destroy --local
+    assert_success
+    assert_mocks_called_in_order \
+        docker stop folio-caddy -- \
+        docker rm folio-caddy
+}
+
+@test "removes local Caddy container" {
+    run destroy --local
+    assert_success
+    assert_mock_called_once docker rm folio-caddy
+}
+
+@test "does not stop application container if no local container" {
+    set_mock_state app_running false
+    run destroy --local
+    assert_success
+    assert_mock_not_called docker stop folio
+}
+
+@test "does not remove application container if no local container" {
+    set_mock_state app_running false
+    run destroy --local
+    assert_success
+    assert_mock_not_called docker rm folio
+}
+
+@test "stops local application container" {
     run destroy --local
     assert_success
     assert_mock_called_once docker stop folio
 }
 
-@test "stops container before removing" {
+@test "stops application container before removing" {
     run destroy --local
     assert_success
     assert_mocks_called_in_order \
@@ -103,10 +146,23 @@ teardown() {
         docker rm folio
 }
 
-@test "removes local container" {
+@test "removes local application container" {
     run destroy --local
     assert_success
     assert_mock_called_once docker rm folio
+}
+
+@test "does not remove docker network if no docker network" {
+    set_mock_state network_running false
+    run destroy --local
+    assert_success
+    assert_mock_not_called docker network rm folio-net
+}
+
+@test "removes docker network" {
+    run destroy --local
+    assert_success
+    assert_mock_called_once docker network rm folio-net
 }
 
 @test "destroys remotely" {
@@ -150,6 +206,15 @@ teardown() {
     assert_failure
     assert_output --partial \
         "Error: SSH key ID required for non-local deployment."
+}
+
+@test "requires private key file for remote destroy" {
+    setup_remote_env
+    unset FOLIO_PRIVATE_KEY_FILE
+    run destroy <<< "y"
+    assert_failure
+    assert_output --partial \
+        "Error: Private key file required for non-local deployment."
 }
 
 @test "requires public key file for remote destroy" {
@@ -216,6 +281,14 @@ teardown() {
     setup_remote_env
     unset FOLIO_SSH_KEY_ID
     run destroy <<< "y" --ssh-key-id 1234
+    assert_success
+    assert_output --partial "Deployment destroyed successfully."
+}
+
+@test "accepts private key file as option" {
+    setup_remote_env
+    unset FOLIO_PRIVATE_KEY_FILE
+    run destroy <<< "y" --private-key /path/to/private_key
     assert_success
     assert_output --partial "Deployment destroyed successfully."
 }
@@ -301,6 +374,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"
@@ -315,6 +389,7 @@ teardown() {
         --ssh-port 2222 \
         --email "test@example.com" \
         --ssh-key-id 2345 \
+        --private-key /path/to/test_key \
         --public-key /path/to/test_key.pub \
         --cf-token test_token \
         --do-token test_token
@@ -330,6 +405,7 @@ teardown() {
         -var "ssh_port=2222" \
         -var "acme_email=test@example.com" \
         -var "ssh_key_id=2345" \
+        -var "ssh_private_key_file=/path/to/test_key" \
         -var "ssh_public_key_file=/path/to/test_key.pub" \
         -var "cf_token=test_token" \
         -var "do_token=test_token"
@@ -350,6 +426,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"
@@ -370,6 +447,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"
@@ -390,6 +468,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"
@@ -410,6 +489,7 @@ teardown() {
         -var "ssh_port=22" \
         -var "acme_email=example@example.com" \
         -var "ssh_key_id=1234" \
+        -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token"

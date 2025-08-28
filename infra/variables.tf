@@ -87,7 +87,29 @@ variable "ssh_public_key_file" {
             "^ssh-(rsa|ed25519)\\s[\\w0-9+/=]+",
             trimspace(file(var.ssh_public_key_file))
         ))
-        error_message = "The file does not appear to be a valid SSH public key."
+        error_message = "The file is not a valid SSH public key."
+    }
+}
+variable "ssh_private_key_file" {
+    description = "The path to the SSH private key file for server connection."
+    type = string
+    default = ""
+    sensitive = true
+    validation {
+        condition = length(trimspace(var.ssh_private_key_file)) > 0
+        error_message = "The SSH private key file path must not be empty."
+    }
+    validation {
+        condition = (length(trimspace(var.ssh_private_key_file)) > 0
+            && fileexists(var.ssh_private_key_file))
+        error_message = "The SSH private key file does not exist."
+    }
+    validation {
+        condition = can(regex(
+            "^-+BEGIN (OPENSSH|RSA|ED25519) PRIVATE KEY",
+            trimspace(file(var.ssh_private_key_file))
+        ))
+        error_message = "The file is not a valid SSH private key."
     }
 }
 
@@ -123,4 +145,10 @@ variable "acme_email" {
         )) || var.acme_email == ""
         error_message = "The ACME email must be a valid email address or empty."
     }
+}
+
+variable "is_test" {
+    description = "Whether terraform is currently running a test."
+    type = bool
+    default = false
 }

@@ -13,6 +13,14 @@ setup() {
     setup_mocks
 
     mock source
+
+    realpath() { log_mock_call realpath "$@"; echo "/code/${1##*/}"; }
+    uname() { log_mock_call uname "$@"; echo "Linux"; }
+    cygpath() {
+        log_mock_call cygpath "$@";
+        echo "windows_path";
+    }
+
     mock npm
 
     node() {
@@ -77,6 +85,33 @@ setup_env() {
 
 teardown() {
     teardown_mocks
+}
+
+@test "resolves paths" {
+    run resolve_path "test/path"
+    assert_success
+    assert_output --partial "test/path"
+}
+
+@test "resolves MinGW paths" {
+    uname() { log_mock_call uname "$@"; echo "MINGW64_NT-10.0"; }
+    run resolve_path "test/path"
+    assert_success
+    assert_output --partial "windows_path"
+}
+
+@test "resolves MSYS paths" {
+    uname() { log_mock_call uname "$@"; echo "MSYS_NT-10.0"; }
+    run resolve_path "test/path"
+    assert_success
+    assert_output --partial "windows_path"
+}
+
+@test "resolves Cygwin paths" {
+    uname() { log_mock_call uname "$@"; echo "CYGWIN_NT-10.0"; }
+    run resolve_path "test/path"
+    assert_success
+    assert_output --partial "windows_path"
 }
 
 @test "environment loads" {
@@ -192,14 +227,23 @@ teardown() {
         if [[ "$1" != *.env ]]; then return 1; fi
     }
     load_env
+    assert_equal "$ENV_FILE" "/code/.env"
     assert_mock_called_once source "/code/.env"
 }
 
 @test "loads environment specific file" {
     ENVIRONMENT="test"
     load_env
+    assert_equal "$ENV_FILE" "/code/.env.test"
     assert_mock_called_once source "/code/.env.test"
     assert_mock_not_called source "/code/.env"
+}
+
+@test "sets empty .env file variable if none found" {
+    source() { log_mock_call source "$@"; return 1; }
+    load_env
+    assert_equal "$ENV_FILE" ""
+    assert_mock_called_once source "/code/.env"
 }
 
 @test "loads specified environment specific file" {

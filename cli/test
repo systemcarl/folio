@@ -17,6 +17,7 @@ test() {
         echo "  --set-status    Set the commit status of CI/CD pipeline"
         echo "  --force -f      Force test even if a status is already set"
         echo "  --domain        Specify the test domain for the application"
+        echo "  --private-key   Specify the test deployment private key file"
         echo "  --public-key    Specify the test deployment public key file"
         echo "  --gh-token      Specify the GitHub API token"
         echo "  --ci            Run in non-interactive mode"
@@ -25,6 +26,7 @@ test() {
         echo "  --help, -h      Show this help message"
         echo "Environment Variables:"
         echo "  FOLIO_APP_DOMAIN        Domain for application test deployment."
+        echo "  FOLIO_PRIVATE_KEY_FILE  Path to the SSH private key file."
         echo "  FOLIO_PUBLIC_KEY_FILE   Path to the SSH public key file."
         echo "  FOLIO_GH_TOKEN          GitHub API token."
     }
@@ -37,6 +39,7 @@ test() {
     local set_status=false
     local force=false
     local domain=""
+    local private_key_file=""
     local public_key_file=""
     local interactive=true
     local dry_run=false
@@ -52,6 +55,7 @@ test() {
             --set-status ) set_status=true;;
             --force | -f ) force=true;;
             --domain ) domain="$2"; shift;;
+            --private-key ) private_key_file="$2"; shift;;
             --public-key ) public_key_file="$2"; shift;;
             --gh-token ) FOLIO_GH_TOKEN="$2"; shift;;
             --ci ) interactive=false;;
@@ -138,11 +142,7 @@ test() {
 
     update_status "pending" "started" || return 1
 
-    local os="$(uname -s)"
-    local root="$(pwd)"
-    if [[ "$os" == "MINGW"* || "$os" == "MSYS"* || "$os" == "CYGWIN"* ]]; then
-        root="$(cygpath -w "$root")"
-    fi
+    local root=$(resolve_path "$(pwd)")
 
     if [[ -n "$test_path" ]]; then
         if [[ ! "$test_path" =~ .*bats$ ]] && [[ ! "$test_path" =~ /$ ]]; then
@@ -252,6 +252,9 @@ test() {
         if [[ -z "$test_filter" ]] && [[ -z "$test_path" ]]; then
             local opts=""
             if [[ -n "$domain" ]]; then opts="--domain $domain"; fi
+            if [[ -n "$private_key_file" ]]; then
+                opts+=" --private-key $private_key_file"
+            fi
             if [[ -n "$public_key_file" ]]; then
                 opts+=" --public-key $public_key_file"
             fi

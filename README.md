@@ -31,9 +31,11 @@ scripts:
     SSL certificate for the application domain.
 - `FOLIO_SSH_KEY_ID`: The *DigitalOcean* identifier of the SSH key used to
     initialize the application server.
+- `FOLIO_PRIVATE_KEY_FILE`: The path to the private key file used by the
+    default user of the deployed application server. This private key can be
+    used to access the application server after deployment as user `app`.
 - `FOLIO_PUBLIC_KEY_FILE`: The path to the public key file used by the
-    default user of the deployed application server. Respective private key
-    can be used to access the application server after deployment as user `app`.
+    default user of the deployed application server.
 - `FOLIO_GCS_CREDENTIALS`: The path to the *Google Cloud Service* credentials
     JSON file. Overrides the global `GOOGLE_CREDENTIALS` variable.
 - `FOLIO_CF_TOKEN`: The *Cloudflare* API token used to update the DNS records

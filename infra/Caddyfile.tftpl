@@ -1,0 +1,32 @@
+%{ if (acme_email) != "" || environment != "production" ~}
+{
+%{ if acme_email != "" ~}
+    email ${acme_email}
+%{ endif }%{ if environment != "production" ~}
+    acme_ca https://acme-staging-v02.api.letsencrypt.org/directory \
+%{ endif ~}
+}
+%{ endif ~}
+
+${hostname} {
+    root * /srv/static
+
+    header {
+        Cache-Control "public, max-age=60, stale-while-revalidate=30"
+%{ if environment != "production" ~}
+        X-Robots-Tag "noindex, nofollow"
+%{ endif ~}
+    }
+
+    @has_file file {path}
+    handle @has_file {
+        file_server
+    }
+
+    reverse_proxy folio:3000
+}
+
+http://caddy {
+    root * /srv/static
+    file_server
+}

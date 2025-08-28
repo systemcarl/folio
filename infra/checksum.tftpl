@@ -1,0 +1,38 @@
+if [[ ! -f "/root/.env" ]]; then
+    echo "/root/.env not found"
+    exit 1
+fi
+
+env_check=$(cat "/root/.env" | sha256sum)
+if [[ "$env_check" != "${env_check}" ]]; then
+    echo "Environment file mismatch"
+    echo "expected: ${env_check}"
+    echo "actual: $env_check"
+    exit 1
+fi
+if [[ ! -f "/root/Caddyfile" ]]; then
+    echo "/root/Caddyfile not found"
+    exit 1
+fi
+caddyfile_check=$(cat "/root/Caddyfile" | sha256sum)
+if [[ "$caddyfile_check" != "${caddyfile_check}" ]]; then
+    echo "Caddyfile mismatch"
+    echo "expected: ${caddyfile_check}"
+    echo "actual: $caddyfile_check"
+    exit 1
+fi
+if [[ ! -d "/root/static" ]]; then
+    echo "/root/static not found"
+    exit 1
+fi
+cd /root/static
+assets_check=$(echo -n $(find . -type f | sed 's|^\./||' | LC_ALL=C sort) \
+    | sha256sum)
+if [[ "$assets_check" != "${assets_check}" ]]; then
+    echo "Assets checksum mismatch"
+    echo "expected: ${assets_check}"
+    echo "actual: $assets_check"
+    exit 1
+fi
+
+echo "Provisioner checksum successful."

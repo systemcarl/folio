@@ -1,3 +1,4 @@
+source "$(dirname "${BASH_SOURCE[0]}")/utils/environment"
 source "$(dirname "${BASH_SOURCE[0]}")/utils/deployment"
 source "$(dirname "${BASH_SOURCE[0]}")/utils/package"
 source "$(dirname "${BASH_SOURCE[0]}")/containerize"
@@ -103,6 +104,7 @@ deploy() {
             -var "ssh_port=$FOLIO_SSH_PORT" \
             -var "acme_email=$FOLIO_ACME_EMAIL" \
             -var "ssh_key_id=$FOLIO_SSH_KEY_ID" \
+            -var "ssh_private_key_file=$FOLIO_PRIVATE_KEY_FILE" \
             -var "ssh_public_key_file=$FOLIO_PUBLIC_KEY_FILE" \
             -var "cf_token=$FOLIO_CF_TOKEN" \
             -var "do_token=$FOLIO_DO_TOKEN"
@@ -151,10 +153,25 @@ deploy() {
 
     containerize || return 1
 
-    if docker image inspect "$FOLIO_APP_REPO:$version" > /dev/null 2>&1; then
+    local caddyfile=$(resolve_path "$(pwd)/Caddyfile")
+    local static=$(resolve_path "$(pwd)/assets")
+    local app_env=$(resolve_path "$(pwd)/app.env")
+
+    docker network create folio-net || return 1
+
+    docker run -d \
+        --name folio-caddy \
+        -p 3000:80 \
+        -v "$caddyfile:/etc/caddy/Caddyfile" \
+        -v "$static:/srv/static" \
+        --network folio-net \
+        caddy:latest
+
+    if docker image inspect "$FOLIO_CICD_REPO:$version" > /dev/null 2>&1; then
         docker run -d \
             --name folio \
-            -p 3000:3000 \
+            --network folio-net \
+            --env-file "$app_env" \
             "$FOLIO_CICD_REPO:$version"
     else
         echo "Docker image '$FOLIO_CICD_REPO:$version' not found locally."
@@ -172,7 +189,8 @@ deploy() {
         fi
         docker run -d \
             --name folio \
-            -p 3000:3000 \
+            --network folio-net \
+            --env-file "$app_env" \
             "ghcr.io/$FOLIO_CICD_ACCOUNT/$FOLIO_CICD_REPO:$version"
     fi
     if [[ $? -ne 0 ]]; then

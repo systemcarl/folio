@@ -15,6 +15,7 @@ deployment_usage() {
     echo "  --ssh-port      Specify the SSH port for the server"
     echo "  --email         Specify the email for ACME certificate registration"
     echo "  --ssh-key-id    Specify the SSH key ID for initial configuration"
+    echo "  --private-key   Specify the SSH private key file for the server"
     echo "  --public-key    Specify the SSH public key file for the server"
     echo "  --gcs-creds     Specify the Google Cloud Service credentials file"
     echo "  --cf-token      Specify the Cloudflare API token"
@@ -32,6 +33,7 @@ deployment_usage() {
     echo "  FOLIO_SSH_PORT          SSH port for the server (default: 22)."
     echo "  FOLIO_ACME_EMAIL        Email for ACME certificate registration."
     echo "  FOLIO_SSH_KEY_ID        SSH key ID for initial configuration."
+    echo "  FOLIO_PRIVATE_KEY_FILE  Path to the SSH private key file."
     echo "  FOLIO_PUBLIC_KEY_FILE   Path to the SSH public key file."
     echo "  FOLIO_GCS_CREDENTIALS   Path to Google Cloud Service credentials."
     echo "  FOLIO_CF_TOKEN          Cloudflare API token."
@@ -62,6 +64,7 @@ parse_environment_args() {
             --ssh-port ) FOLIO_SSH_PORT="$2"; shift;;
             --email ) FOLIO_ACME_EMAIL="$2"; shift;;
             --ssh-key-id ) FOLIO_SSH_KEY_ID="$2"; shift;;
+            --private-key ) FOLIO_PRIVATE_KEY_FILE="$2"; shift;;
             --public-key ) FOLIO_PUBLIC_KEY_FILE="$2"; shift;;
             --gcs-creds ) GOOGLE_CREDENTIALS="$2"; shift;;
             --cf-token ) FOLIO_CF_TOKEN="$2"; shift;;
@@ -109,6 +112,11 @@ parse_environment_args() {
         fi
         if [[ -z "$FOLIO_SSH_KEY_ID" ]]; then
             echo "Error: SSH key ID required for non-local deployment."
+            deployment_usage
+            return 1
+        fi
+        if [[ -z "$FOLIO_PRIVATE_KEY_FILE" ]]; then
+            echo "Error: Private key file required for non-local deployment."
             deployment_usage
             return 1
         fi

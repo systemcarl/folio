@@ -5,7 +5,8 @@ variables {
     domain = "app.example.com"
     dns_zone = "abc123"
     ssh_key_id = 1234
-    ssh_public_key_file = "tests/.pub"
+    ssh_private_key_file = "tests/key"
+    ssh_public_key_file = "tests/key.pub"
     cf_token = "abcde12345abcde12345abcde12345abcde12345"
     do_token = "12345abcde12345abcde12345abcde12345abcde"
 }
@@ -62,6 +63,24 @@ run "requires_positive_ssh_key_id" {
     expect_failures = [var.ssh_key_id]
 }
 
+run "requires_ssh_private_key_file" {
+    command = plan
+    variables { ssh_private_key_file = "" }
+    expect_failures = [var.ssh_private_key_file]
+}
+
+run "requires_existing_ssh_private_key_file" {
+    command = plan
+    variables { ssh_private_key_file = "nonexistent" }
+    expect_failures = [var.ssh_private_key_file]
+}
+
+run "requires_valid_ssh_private_key_file" {
+    command = plan
+    variables { ssh_private_key_file = "tests/bad_key" }
+    expect_failures = [var.ssh_private_key_file]
+}
+
 run "requires_ssh_public_key_file" {
     command = plan
     variables { ssh_public_key_file = "" }
@@ -76,7 +95,7 @@ run "requires_existing_ssh_public_key_file" {
 
 run "requires_valid_ssh_public_key_file" {
     command = plan
-    variables { ssh_public_key_file = "tests/bad.pub" }
+    variables { ssh_public_key_file = "tests/bad_key.pub" }
     expect_failures = [var.ssh_public_key_file]
 }
 

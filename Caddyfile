@@ -1,0 +1,15 @@
+http://folio-caddy {
+    root * /srv/static
+    file_server
+}
+
+:80 {
+    root * /srv/static
+
+    @has_file file {path}
+    handle @has_file {
+        file_server
+    }
+
+    reverse_proxy folio:3000
+}
