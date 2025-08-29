@@ -3,7 +3,7 @@
 %{ if acme_email != "" ~}
     email ${acme_email}
 %{ endif }%{ if environment != "production" ~}
-    acme_ca https://acme-staging-v02.api.letsencrypt.org/directory \
+    acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 %{ endif ~}
 }
 %{ endif ~}

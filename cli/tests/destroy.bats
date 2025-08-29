@@ -38,6 +38,7 @@ setup() {
 
     FOLIO_CICD_ACCOUNT="cicd-account"
     FOLIO_CICD_REPO="cicd-repo"
+    SENTRY_DSN="https://example@sentry.io/123456"
 }
 
 setup_remote_env() {
@@ -377,7 +378,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates Terraform destroy plan from options" {
@@ -408,7 +410,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/test_key" \
         -var "ssh_public_key_file=/path/to/test_key.pub" \
         -var "cf_token=test_token" \
-        -var "do_token=test_token"
+        -var "do_token=test_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates staging Terraform destroy plan" {
@@ -429,7 +432,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates test Terraform destroy plan" {
@@ -450,7 +454,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates environment Terraform destroy plan" {
@@ -471,7 +476,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates Terraform destroy plan with custom domain" {
@@ -492,7 +498,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates Terraform plan before destroying" {

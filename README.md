@@ -49,6 +49,17 @@ scripts:
     required permission scopes.
 - `FOLIO_GHPR_TOKEN`: The *GitHub* API token used to authenticate *Docker*
     with the *GitHub Packages* registry.
+- `SENTRY_DSN`: The public *Sentry* DSN used to report errors and performance
+    issues.
+- `SENTRY_ORG`: The *Sentry* organization name used to upload source maps during
+    containerization. This environment variable is not deployed with the
+    application.
+- `SENTRY_PROJECT`: The *Sentry* project name used to upload source maps during
+    containerization. This environment variable is not deployed with the
+    application.
+- `SENTRY_AUTH_TOKEN`: The *Sentry* authentication token used to upload source
+    maps during containerization. This environment variable is not deployed with
+    the application.
 
 ## Validation
 Before building the application, you can validate the application code using

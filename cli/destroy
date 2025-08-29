@@ -48,7 +48,8 @@ destroy() {
             -var "ssh_private_key_file=$FOLIO_PRIVATE_KEY_FILE" \
             -var "ssh_public_key_file=$FOLIO_PUBLIC_KEY_FILE" \
             -var "cf_token=$FOLIO_CF_TOKEN" \
-            -var "do_token=$FOLIO_DO_TOKEN"
+            -var "do_token=$FOLIO_DO_TOKEN" \
+            -var "sentry_dsn=$SENTRY_DSN"
         if [[ $? -ne 0 ]]; then
             echo "Failed to create Terraform destroy plan."
             return 1

@@ -21,6 +21,17 @@ run "renders_env_file_base_url" {
     }
 }
 
+run "renders_env_file_public_environment" {
+    command = plan
+    assert {
+        condition = strcontains(
+            local.env_file,
+            "PUBLIC_ENVIRONMENT=${var.environment}",
+        )
+        error_message = "Environment file does not define PUBLIC_ENVIRONMENT."
+    }
+}
+
 run "renders_env_file_public_base_url" {
     command = plan
     assert {
@@ -40,6 +51,17 @@ run "renders_env_file_public_favicon" {
             "PUBLIC_FAVICON=/favicon.svg",
         )
         error_message = "Environment file does not define PUBLIC_FAVICON."
+    }
+}
+
+run "renders_env_file_public_sentry_dsn" {
+    command = plan
+    assert {
+        condition = strcontains(
+            local.env_file,
+            "PUBLIC_SENTRY_DSN=${var.sentry_dsn}",
+        )
+        error_message = "Environment file does not define PUBLIC_SENTRY_DSN."
     }
 }
 

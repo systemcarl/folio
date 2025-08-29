@@ -3,7 +3,7 @@ if [[ ! -f "/root/.env" ]]; then
     exit 1
 fi
 
-env_check=$(cat "/root/.env" | sha256sum)
+env_check=$(cat "/root/.env" | sha256sum | cut -d ' ' -f1)
 if [[ "$env_check" != "${env_check}" ]]; then
     echo "Environment file mismatch"
     echo "expected: ${env_check}"
@@ -14,7 +14,7 @@ if [[ ! -f "/root/Caddyfile" ]]; then
     echo "/root/Caddyfile not found"
     exit 1
 fi
-caddyfile_check=$(cat "/root/Caddyfile" | sha256sum)
+caddyfile_check=$(cat "/root/Caddyfile" | sha256sum | cut -d ' ' -f1)
 if [[ "$caddyfile_check" != "${caddyfile_check}" ]]; then
     echo "Caddyfile mismatch"
     echo "expected: ${caddyfile_check}"
@@ -27,7 +27,7 @@ if [[ ! -d "/root/static" ]]; then
 fi
 cd /root/static
 assets_check=$(echo -n $(find . -type f | sed 's|^\./||' | LC_ALL=C sort) \
-    | sha256sum)
+    | sha256sum | cut -d ' ' -f1)
 if [[ "$assets_check" != "${assets_check}" ]]; then
     echo "Assets checksum mismatch"
     echo "expected: ${assets_check}"

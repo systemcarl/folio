@@ -147,6 +147,12 @@ variable "acme_email" {
     }
 }
 
+variable "sentry_dsn" {
+    description = "Sentry DSN for error tracking."
+    type = string
+    default = ""
+}
+
 variable "is_test" {
     description = "Whether terraform is currently running a test."
     type = bool

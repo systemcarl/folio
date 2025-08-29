@@ -31,7 +31,9 @@ locals {
     )
 
     env_file = templatefile("${path.module}/.env.tftpl", {
+        environment = var.environment,
         domain = var.domain,
+        sentry_dsn = var.sentry_dsn
     })
     env_check = sha256(local.env_file)
 

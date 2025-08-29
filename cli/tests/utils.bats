@@ -21,6 +21,16 @@ setup() {
         echo "windows_path";
     }
 
+    mock cp
+    mock touch
+    tee() {
+        local input=""
+        if [ ! -t 0 ]; then
+            while IFS= read -r line; do input+="$line"$'\n'; done
+        fi
+        log_mock_call tee "$@" "$input"
+    }
+
     mock npm
 
     node() {
@@ -334,6 +344,27 @@ teardown() {
     setup_env
     load_env
     assert_equal "$FOLIO_GHPR_TOKEN" "ghpr_env"
+}
+
+@test "makes new environment file" {
+    run make_env ".env.test"
+    assert_success
+    assert_mock_called_once touch ".env.test"
+}
+
+@test "makes copy environment file" {
+    run make_env --base ".env.base" ".env.test"
+    assert_success
+    assert_mock_called_once cp ".env.base" ".env.test"
+}
+
+@test "makes environment file with new definitions" {
+    run make_env ".env.test" "VAR1=value1" "VAR2=value2"
+    assert_success
+    assert_mock_called_once tee -a ".env.test" " \
+        VAR1=value1 \
+        VAR2=value2 \
+    "
 }
 
 @test "queries json using correct statements" {

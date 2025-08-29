@@ -38,14 +38,16 @@ setup() {
 
     resolve_path() { log_mock_call resolve_path "$@"; echo "$dir_prefix/$1"; }
 
+    mock make_env
     mock load_env
 
+    ENVIRONMENT="production"
     FOLIO_CICD_ACCOUNT="cicd-account"
     FOLIO_CICD_REPO="cicd-repo"
+    SENTRY_DSN="https://example@sentry.io/123456"
 }
 
 setup_remote_env() {
-    ENVIRONMENT="production"
     GOOGLE_CREDENTIALS="/path/to/gcs_creds.json"
     FOLIO_APP_DOMAIN="example.com"
     FOLIO_CF_DNS_ZONE="abc123"
@@ -146,7 +148,21 @@ teardown() {
         docker run -d \
             --name "folio" \
             --network folio-net \
-            --env-file "$dir_prefix/$root_dir/app.env" \
+            --env-file "$dir_prefix/$root_dir/.tmp/app.env" \
+            "cicd-repo:1.2.3"
+}
+
+@test "generates application .env before deploying" {
+    run deploy --local
+    assert_success
+    assert_mocks_called_in_order \
+        make_env --base "root/app.env" "root/.tmp/app.env" \
+            "PUBLIC_ENVIRONMENT=production" \
+            "PUBLIC_SENTRY_DSN=https://example@sentry.io/123456" -- \
+        docker run -d \
+            --name "folio" \
+            --network folio-net \
+            --env-file "$dir_prefix/$root_dir/.tmp/app.env" \
             "cicd-repo:1.2.3"
 }
 
@@ -175,7 +191,7 @@ teardown() {
     assert_mock_called_once docker run -d \
         --name "folio" \
         --network folio-net \
-        --env-file "$dir_prefix/$root_dir/app.env" \
+        --env-file "$dir_prefix/$root_dir/.tmp/app.env" \
         "cicd-repo:1.2.3"
 }
 
@@ -230,7 +246,7 @@ teardown() {
         docker run -d \
             --name "folio" \
             --network folio-net \
-            --env-file "$dir_prefix/$root_dir/app.env" \
+            --env-file "$dir_prefix/$root_dir/.tmp/app.env" \
             "ghcr.io/cicd-account/cicd-repo:1.2.3"
 }
 
@@ -624,7 +640,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates Terraform plan from options" {
@@ -655,7 +672,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/test_key" \
         -var "ssh_public_key_file=/path/to/test_key.pub" \
         -var "cf_token=test_token" \
-        -var "do_token=test_token"
+        -var "do_token=test_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates staging Terraform plan" {
@@ -676,7 +694,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates test Terraform plan" {
@@ -697,7 +716,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates environment Terraform plan" {
@@ -718,7 +738,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "creates Terraform plan with custom domain" {
@@ -739,7 +760,8 @@ teardown() {
         -var "ssh_private_key_file=/path/to/private_key" \
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
-        -var "do_token=do_token"
+        -var "do_token=do_token" \
+        -var "sentry_dsn=https://example@sentry.io/123456"
 }
 
 @test "sets commit status to 'failure' after failing to create Terraform plan" {
