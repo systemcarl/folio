@@ -14,12 +14,16 @@ setup() {
 
     docker() {
         log_mock_call docker "$@"
-        if [[ "$1" == "ps" ]] && [[ " $* " == *" name=folio "* ]]; then
+        if [[ "$1" == "ps" ]] && [[ " $* " == *"cicd-repo "* ]]; then
             if [[ $(get_mock_state "app_running") != "false" ]]; then
                 echo "123456789abc"
             fi
-        elif [[ "$1" == "ps" ]] && [[ " $* " == *" name=folio-caddy "* ]]; then
+        elif [[ "$1" == "ps" ]] && [[ " $* " == *"cicd-repo-caddy "* ]]; then
             if [[ $(get_mock_state "caddy_running") != "false" ]]; then
+                echo "123456789abc"
+            fi
+        elif [[ "$1" == "ps" ]] && [[ " $* " == *"cicd-repo-alloy "* ]]; then
+            if [[ $(get_mock_state "alloy_running") != "false" ]]; then
                 echo "123456789abc"
             fi
         elif [[ "$1" == "network" ]]; then
@@ -39,6 +43,9 @@ setup() {
     FOLIO_CICD_ACCOUNT="cicd-account"
     FOLIO_CICD_REPO="cicd-repo"
     SENTRY_DSN="https://example@sentry.io/123456"
+    LOKI_URL="http://loki:3100/loki/api/v1/push"
+    LOKI_USERNAME="123456"
+    LOKI_PASSWORD="abcdef"
 }
 
 setup_remote_env() {
@@ -89,81 +96,115 @@ teardown() {
     set_mock_state caddy_running false
     run destroy --local
     assert_success
-    assert_mock_not_called docker stop folio-caddy
+    assert_mock_not_called docker stop cicd-repo-caddy
 }
 
 @test "does not remove Caddy container if no local container" {
     set_mock_state caddy_running false
     run destroy --local
     assert_success
-    assert_mock_not_called docker rm folio-caddy
+    assert_mock_not_called docker rm cicd-repo-caddy
 }
 
 @test "stops local Caddy container" {
     run destroy --local
     assert_success
-    assert_mock_called_once docker stop folio-caddy
+    assert_mock_called_once docker stop cicd-repo-caddy
 }
 
 @test "stops Caddy container before removing" {
     run destroy --local
     assert_success
     assert_mocks_called_in_order \
-        docker stop folio-caddy -- \
-        docker rm folio-caddy
+        docker stop cicd-repo-caddy -- \
+        docker rm cicd-repo-caddy
 }
 
 @test "removes local Caddy container" {
     run destroy --local
     assert_success
-    assert_mock_called_once docker rm folio-caddy
+    assert_mock_called_once docker rm cicd-repo-caddy
 }
 
 @test "does not stop application container if no local container" {
     set_mock_state app_running false
     run destroy --local
     assert_success
-    assert_mock_not_called docker stop folio
+    assert_mock_not_called docker stop cicd-repo
 }
 
 @test "does not remove application container if no local container" {
     set_mock_state app_running false
     run destroy --local
     assert_success
-    assert_mock_not_called docker rm folio
+    assert_mock_not_called docker rm cicd-repo
 }
 
 @test "stops local application container" {
     run destroy --local
     assert_success
-    assert_mock_called_once docker stop folio
+    assert_mock_called_once docker stop cicd-repo
 }
 
 @test "stops application container before removing" {
     run destroy --local
     assert_success
     assert_mocks_called_in_order \
-        docker stop folio -- \
-        docker rm folio
+        docker stop cicd-repo -- \
+        docker rm cicd-repo
 }
 
 @test "removes local application container" {
     run destroy --local
     assert_success
-    assert_mock_called_once docker rm folio
+    assert_mock_called_once docker rm cicd-repo
+}
+
+@test "does not stop Grafana Alloy container if no local container" {
+    set_mock_state alloy_running false
+    run destroy --local
+    assert_success
+    assert_mock_not_called docker stop cicd-repo-alloy
+}
+
+@test "does not remove Grafana Alloy container if no local container" {
+    set_mock_state alloy_running false
+    run destroy --local
+    assert_success
+    assert_mock_not_called docker rm cicd-repo-alloy
+}
+
+@test "stops local Grafana Alloy container" {
+    run destroy --local
+    assert_success
+    assert_mock_called_once docker stop cicd-repo-alloy
+}
+
+@test "stops Grafana Alloy container before removing" {
+    run destroy --local
+    assert_success
+    assert_mocks_called_in_order \
+        docker stop cicd-repo-alloy -- \
+        docker rm cicd-repo-alloy
+}
+
+@test "removes local Grafana Alloy container" {
+    run destroy --local
+    assert_success
+    assert_mock_called_once docker rm cicd-repo-alloy
 }
 
 @test "does not remove docker network if no docker network" {
     set_mock_state network_running false
     run destroy --local
     assert_success
-    assert_mock_not_called docker network rm folio-net
+    assert_mock_not_called docker network rm cicd-repo-net
 }
 
 @test "removes docker network" {
     run destroy --local
     assert_success
-    assert_mock_called_once docker network rm folio-net
+    assert_mock_called_once docker network rm cicd-repo-net
 }
 
 @test "destroys remotely" {
@@ -379,7 +420,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates Terraform destroy plan from options" {
@@ -411,7 +455,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/test_key.pub" \
         -var "cf_token=test_token" \
         -var "do_token=test_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates staging Terraform destroy plan" {
@@ -433,7 +480,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates test Terraform destroy plan" {
@@ -455,7 +505,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates environment Terraform destroy plan" {
@@ -477,7 +530,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates Terraform destroy plan with custom domain" {
@@ -499,7 +555,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates Terraform plan before destroying" {

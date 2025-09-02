@@ -108,7 +108,10 @@ deploy() {
             -var "ssh_public_key_file=$FOLIO_PUBLIC_KEY_FILE" \
             -var "cf_token=$FOLIO_CF_TOKEN" \
             -var "do_token=$FOLIO_DO_TOKEN" \
-            -var "sentry_dsn=$SENTRY_DSN"
+            -var "sentry_dsn=$SENTRY_DSN" \
+            -var "loki_url=$LOKI_URL" \
+            -var "loki_username=$LOKI_USERNAME" \
+            -var "loki_password=$LOKI_PASSWORD"
         if [[ $? -ne 0 ]]; then
             echo "Failed to create Terraform plan."
             update_status "failure" "failed to resolve required resources"
@@ -152,30 +155,51 @@ deploy() {
         return 0
     fi
 
+    if [[ "$ENVIRONMENT" == "production" || "$ENVIRONMENT" == "staging" ]]; then
+        echo "Error: Cannot run $ENVIRONMENT environment locally."
+        return 1
+    fi
+
     containerize || return 1
 
+    local os="$(uname -s)"
+    local docker_host="unix:///var/run/docker.sock"
+    local docker_mount="-v /var/run/docker.sock:/var/run/docker.sock"
+    if [[ "$os" == "MINGW"* || "$os" == "MSYS"* || "$os" == "CYGWIN"* ]]; then
+        docker_host="tcp://host.docker.internal:2375"
+        docker_mount=""
+    fi
+
     make_env --base "$(pwd)/app.env" "$(pwd)/.tmp/app.env" \
+        "ENVIRONMENT=$ENVIRONMENT" \
         "PUBLIC_ENVIRONMENT=$ENVIRONMENT" \
-        "PUBLIC_SENTRY_DSN=$SENTRY_DSN"
+        "APP_NAME=$FOLIO_CICD_REPO" \
+        "DOCKER_HOST=$docker_host" \
+        "PUBLIC_SENTRY_DSN=$SENTRY_DSN" \
+        "LOKI_URL=$LOKI_URL" \
+        "LOKI_USERNAME=$LOKI_USERNAME" \
+        "LOKI_PASSWORD=$LOKI_PASSWORD"
 
     local caddyfile=$(resolve_path "$(pwd)/Caddyfile")
     local static=$(resolve_path "$(pwd)/assets")
     local app_env=$(resolve_path "$(pwd)/.tmp/app.env")
+    local alloy_file=$(resolve_path "$(pwd)/config.alloy")
 
-    docker network create folio-net || return 1
+    docker network create "$FOLIO_CICD_REPO-net" || return 1
 
     docker run -d \
-        --name folio-caddy \
+        --name "$FOLIO_CICD_REPO-caddy" \
         -p 3000:80 \
         -v "$caddyfile:/etc/caddy/Caddyfile" \
         -v "$static:/srv/static" \
-        --network folio-net \
+        --network "$FOLIO_CICD_REPO-net" \
+        --env-file "$app_env" \
         caddy:latest
 
     if docker image inspect "$FOLIO_CICD_REPO:$version" > /dev/null 2>&1; then
         docker run -d \
-            --name folio \
-            --network folio-net \
+            --name "$FOLIO_CICD_REPO" \
+            --network "$FOLIO_CICD_REPO-net" \
             --env-file "$app_env" \
             "$FOLIO_CICD_REPO:$version"
     else
@@ -193,8 +217,8 @@ deploy() {
             return 1
         fi
         docker run -d \
-            --name folio \
-            --network folio-net \
+            --name "$FOLIO_CICD_REPO" \
+            --network "$FOLIO_CICD_REPO-net" \
             --env-file "$app_env" \
             "ghcr.io/$FOLIO_CICD_ACCOUNT/$FOLIO_CICD_REPO:$version"
     fi
@@ -203,6 +227,16 @@ deploy() {
         return 1
     fi
     echo "Application is running on http://localhost:3000"
+
+    if [[ -n "$LOKI_URL" ]]; then
+        docker run -d \
+            "--name=$FOLIO_CICD_REPO-alloy" \
+            $docker_mount \
+            -v "$alloy_file:/etc/alloy/config.alloy" \
+            --env-file "$app_env" \
+            grafana/alloy:latest \
+            run --server.http.listen-addr=0.0.0.0:12345 etc/alloy/config.alloy
+    fi
 
     echo
     local opts=""

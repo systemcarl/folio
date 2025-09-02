@@ -40,9 +40,19 @@ locals {
     caddyfile = templatefile("${path.module}/Caddyfile.tftpl", {
         environment = var.environment,
         hostname = var.domain,
+        container_name = var.app_package,
         acme_email = var.acme_email,
     })
     caddyfile_check = sha256(local.caddyfile)
+
+    alloy_file = templatefile("${path.module}/config.alloy.tftpl", {
+        environment = var.environment,
+        app_name = var.app_package,
+        loki_url = var.loki_url,
+        loki_username = var.loki_username,
+        loki_password = var.loki_password
+    })
+    alloy_check = sha256(local.alloy_file)
 
     assets_check = sha256(join(" ",
          sort(fileset("${path.module}/../assets/", "**"))
@@ -62,6 +72,7 @@ resource "digitalocean_droplet" "app" {
             ssh_port = var.ssh_port,
             ssh_public_key = file(var.ssh_public_key_file),
             hostname = var.domain,
+            container_name = var.app_package,
             app_package = join("", [
                 "ghcr.io/${var.namespace}/",
                 "${var.app_package}:${local.app_version}"
@@ -96,6 +107,11 @@ resource "null_resource" "upload" {
     }
 
     provisioner "file" {
+        content = local.alloy_file
+        destination = "/root/config.alloy"
+    }
+
+    provisioner "file" {
         source = "${path.module}/../assets"
         destination = "/root/static/"
     }
@@ -104,6 +120,7 @@ resource "null_resource" "upload" {
         content = templatefile("${path.module}/checksum.tftpl", {
             env_check = local.env_check,
             caddyfile_check = local.caddyfile_check,
+            alloy_check = local.alloy_check,
             assets_check = local.assets_check
         })
         destination = "/root/checksum"

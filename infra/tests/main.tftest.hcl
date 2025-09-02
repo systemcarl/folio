@@ -11,6 +11,9 @@ variables {
     ssh_public_key_file = "tests/key.pub"
     cf_token = "abcde12345abcde12345abcde12345abcde12345"
     do_token = "12345abcde12345abcde12345abcde12345abcde"
+    loki_url = "https://loki.example.com/loki/api/v1/push"
+    loki_username = "123456"
+    loki_password = "abcdef"
 }
 
 run "renders_env_file_base_url" {
@@ -133,7 +136,7 @@ run "renders_caddyfile_external_virtual_host" {
             "[^}]*\\}",
             "[^}]*@has_file file {path}",
             "[^}]*handle @has_file \\{[^}]*file_server[^}]*\\}",
-            "[^}]*reverse_proxy folio:3000",
+            "[^}]*reverse_proxy app-package:3000",
             "[^}]*\\}"
         ]), local.caddyfile))
         error_message = "Caddyfile does not define external service."
@@ -172,6 +175,148 @@ run "renders_caddyfile_internal_static_service" {
     }
 }
 
+run "renders_alloy_config_discovery" {
+    command = plan
+    assert {
+        condition = can(regex(join("", [
+            "discovery\\.docker \"containers\" \\{",
+            "[^}]*host = \"unix:///var/run/docker\\.sock\"",
+            "[^}]*\\}",
+        ]), local.alloy_file))
+        error_message = "Alloy config does not define docker discovery."
+    }
+}
+
+run "renders_alloy_config_container_relabelling" {
+    command = plan
+    assert {
+        condition = can(regex(join("", [
+            "discovery\\.relabel \"logs_integrations_docker\" \\{",
+            "[^}]*targets = discovery\\.docker\\.containers\\.targets",
+            "[^}]*rule \\{",
+            "[^}]*source_labels = \\[\"__meta_docker_container_name\"\\]",
+            "[^}]*regex = \"/\" \\+ \"app-package\"",
+            "[^}]*action = \"keep\"",
+            "[^}]*\\}",
+            "[^}]*rule \\{",
+            "[^}]*source_labels = \\[\"__meta_docker_container_name\"\\]",
+            "[^}]*regex = \"/\\(\\.\\*\\)\"",
+            "[^}]*target_label = \"service_name\"",
+            "[^}]*\\}",
+            "[^}]*\\}",
+        ]), local.alloy_file))
+        error_message = "Alloy config does not define docker relabelling."
+    }
+}
+
+run "renders_alloy_config_loki_source" {
+    command = plan
+    assert {
+        condition = can(regex(join("", [
+            "loki\\.source\\.docker \"default\" \\{",
+            "[^}]*host = \"unix:///var/run/docker\\.sock\"",
+            "[^}]*targets = ",
+                "discovery\\.relabel\\.logs_integrations_docker\\.output",
+            "[^}]*labels = \\{",
+            "[^}]*\"level\" = 30,",
+            "[^}]*\"environment\" = \"test\"",
+            "[^}]*\\}",
+            "[^}]*forward_to = \\[loki\\.process\\.default\\.receiver\\]",
+            "[^}]*\\}",
+        ]), local.alloy_file))
+        error_message = "Alloy config does not define loki source."
+    }
+}
+
+run "renders_alloy_config_loki_process" {
+    command = plan
+    assert {
+        condition = can(regex(join("", [
+            "loki\\.process \"default\" \\{",
+            "[^}]*stage\\.json \\{",
+            "[^}]*expressions = \\{",
+            "[^}]*level = \"\"",
+            "[^}]*type = \"\"",
+            "[^}]*\\}",
+            "[^}]*\\}",
+            "[^}]*stage\\.labels \\{",
+            "[^}]*values = \\{",
+            "[^}]*level = \"\"",
+            "[^}]*type = \"\"",
+            "[^}]*\\}",
+            "[^}]*\\}",
+            "[^}]*forward_to = ",
+                "\\[loki\\.relabel\\.map_level_to_text\\.receiver\\]",
+            "[^}]*\\}",
+        ]), local.alloy_file))
+        error_message = "Alloy config does not define loki process."
+    }
+}
+
+run "renders_alloy_config_loki_relabel" {
+    command = plan
+    assert {
+        condition = can(regex(join("", [
+            "loki\\.relabel \"map_level_to_text\" \\{",
+            "[^}]*rule \\{",
+            "[^}]*source_labels = \\[\"level\"\\]",
+            "[^}]*target_label = \"level\"",
+            "[^}]*regex = \"\\^\\(1\\\\\\\\d\\)\\$\"",
+            "[^}]*replacement = \"trace\"",
+            "[^}]*\\}",
+            "[^}]*rule \\{",
+            "[^}]*source_labels = \\[\"level\"\\]",
+            "[^}]*target_label = \"level\"",
+            "[^}]*regex = \"\\^\\(2\\\\\\\\d\\)\\$\"",
+            "[^}]*replacement = \"debug\"",
+            "[^}]*\\}",
+            "[^}]*rule \\{",
+            "[^}]*source_labels = \\[\"level\"\\]",
+            "[^}]*target_label = \"level\"",
+            "[^}]*regex = \"\\^\\(3\\\\\\\\d\\)\\$\"",
+            "[^}]*replacement = \"info\"",
+            "[^}]*\\}",
+            "[^}]*rule \\{",
+            "[^}]*source_labels = \\[\"level\"\\]",
+            "[^}]*target_label = \"level\"",
+            "[^}]*regex = \"\\^\\(4\\\\\\\\d\\)\\$\"",
+            "[^}]*replacement = \"warn\"",
+            "[^}]*\\}",
+            "[^}]*rule \\{",
+            "[^}]*source_labels = \\[\"level\"\\]",
+            "[^}]*target_label = \"level\"",
+            "[^}]*regex = \"\\^\\(5\\\\\\\\d\\)\\$\"",
+            "[^}]*replacement = \"error\"",
+            "[^}]*\\}",
+            "[^}]*rule \\{",
+            "[^}]*source_labels = \\[\"level\"\\]",
+            "[^}]*target_label = \"level\"",
+            "[^}]*regex = \"\\^\\(6\\\\\\\\d\\)\\$\"",
+            "[^}]*replacement = \"fatal\"",
+            "[^}]*\\}",
+            "[^}]*forward_to = \\[loki\\.write\\.cloud\\.receiver\\]",
+            "[^}]*\\}",
+        ]), local.alloy_file))
+        error_message = "Alloy config does not define loki relabel."
+    }
+}
+
+run "renders_alloy_config_loki_write" {
+    command = plan
+    assert {
+        condition = can(regex(join("", [
+            "loki\\.write \"cloud\" \\{",
+            "[^}]*url = \"https://loki\\.example\\.com/loki/api/v1/push\"",
+            "[^}]*basic_auth \\{",
+            "[^}]*username = \"123456\"",
+            "[^}]*password = \"abcdef\"",
+            "[^}]*\\}",
+            "[^}]*\\}",
+        ]), local.alloy_file))
+        error_message = "Alloy config does not define loki write."
+    }
+}
+
 run "env_checksum_matches_env_file" {
     command = plan
     assert {
@@ -197,6 +342,13 @@ run "caddyfile_checksum_matches_folder_contents" {
     }
 }
 
+run "alloy_config_checksum_matches_file" {
+    command = plan
+    assert {
+        condition = (local.alloy_check == sha256(local.alloy_file))
+        error_message = "Alloy config checksum does not match file."
+    }
+}
 
 run "creates_droplet_with_name_app" {
     command = plan
@@ -250,6 +402,7 @@ run "creates_droplet_with_correct_user_data" {
                     ssh_port = 2222,
                     ssh_public_key = file("tests/key.pub"),
                     hostname = "app.example.com",
+                    container_name = "app-package",
                     app_package = "ghcr.io/app-account/app-package:1.2.3",
                     acme_email = ""
                 }

@@ -14,6 +14,7 @@ setup() {
     dir_prefix=platform
 
     pwd() { log_mock_call pwd "$@"; echo "$root_dir"; }
+    uname() { log_mock_call uname "$@"; echo "Linux"; }
 
     mock terraform
 
@@ -45,6 +46,9 @@ setup() {
     FOLIO_CICD_ACCOUNT="cicd-account"
     FOLIO_CICD_REPO="cicd-repo"
     SENTRY_DSN="https://example@sentry.io/123456"
+    LOKI_URL="http://loki:3100/loki/api/v1/push"
+    LOKI_USERNAME="123456"
+    LOKI_PASSWORD="abcdef"
 }
 
 setup_remote_env() {
@@ -119,6 +123,27 @@ teardown() {
     assert_output --partial "Force status updates enabled."
 }
 
+@test "defaults to local environment" {
+    deploy --local
+    assert_equal "$ENVIRONMENT" "local"
+}
+
+@test "refuses to deploy production environment locally" {
+    setup_remote_env
+    run deploy --local --environment production
+    assert_failure
+    assert_output --partial \
+        "Error: Cannot run production environment locally."
+}
+
+@test "refuses to deploy staging environment locally" {
+    setup_remote_env
+    run deploy --local --environment staging
+    assert_failure
+    assert_output --partial \
+        "Error: Cannot run staging environment locally."
+}
+
 @test "refuses to set status of local deployment" {
     run deploy --local --set-status
     assert_failure
@@ -146,8 +171,8 @@ teardown() {
     assert_mocks_called_in_order \
         containerize -- \
         docker run -d \
-            --name "folio" \
-            --network folio-net \
+            --name cicd-repo \
+            --network cicd-repo-net \
             --env-file "$dir_prefix/$root_dir/.tmp/app.env" \
             "cicd-repo:1.2.3"
 }
@@ -157,30 +182,63 @@ teardown() {
     assert_success
     assert_mocks_called_in_order \
         make_env --base "root/app.env" "root/.tmp/app.env" \
-            "PUBLIC_ENVIRONMENT=production" \
-            "PUBLIC_SENTRY_DSN=https://example@sentry.io/123456" -- \
+            "ENVIRONMENT=local" \
+            "PUBLIC_ENVIRONMENT=local" \
+            "APP_NAME=cicd-repo" \
+            "DOCKER_HOST=unix:///var/run/docker.sock" \
+            "PUBLIC_SENTRY_DSN=https://example@sentry.io/123456" \
+            "LOKI_URL=http://loki:3100/loki/api/v1/push" \
+            "LOKI_USERNAME=123456" \
+            "LOKI_PASSWORD=abcdef" -- \
         docker run -d \
-            --name "folio" \
-            --network folio-net \
+            --name cicd-repo \
+            --network cicd-repo-net \
             --env-file "$dir_prefix/$root_dir/.tmp/app.env" \
             "cicd-repo:1.2.3"
+}
+
+@test "generates application .env for MINGW" {
+    uname() { log_mock_call uname "$@"; echo "MINGW64_NT-10.0"; }
+    run deploy --local
+    assert_success
+    assert_mock_called_once \
+        make_env --base "root/app.env" "root/.tmp/app.env" \
+            "DOCKER_HOST=tcp://host.docker.internal:2375"
+}
+
+@test "generates application .env for MSYS" {
+    uname() { log_mock_call uname "$@"; echo "MSYS_NT-10.0"; }
+    run deploy --local
+    assert_success
+    assert_mock_called_once \
+        make_env --base "root/app.env" "root/.tmp/app.env" \
+            "DOCKER_HOST=tcp://host.docker.internal:2375"
+}
+
+@test "generates application .env for CYGWIN" {
+    uname() { log_mock_call uname "$@"; echo "CYGWIN_NT-10.0"; }
+    run deploy --local
+    assert_success
+    assert_mock_called_once \
+        make_env --base "root/app.env" "root/.tmp/app.env" \
+            "DOCKER_HOST=tcp://host.docker.internal:2375"
 }
 
 @test "creates local docker network" {
     run deploy --local
     assert_success
-    assert_mock_called_once docker network create folio-net
+    assert_mock_called_once docker network create cicd-repo-net
 }
 
 @test "deploys local Caddy server" {
     run deploy --local
     assert_success
     assert_mock_called_once docker run -d \
-        --name "folio-caddy" \
+        --name cicd-repo-caddy \
         -p "3000:80" \
         -v "$dir_prefix/$root_dir/Caddyfile:/etc/caddy/Caddyfile" \
         -v "$dir_prefix/$root_dir/assets:/srv/static" \
-        --network folio-net \
+        --network cicd-repo-net \
         caddy:latest
 }
 
@@ -189,8 +247,8 @@ teardown() {
     run deploy --local
     assert_success
     assert_mock_called_once docker run -d \
-        --name "folio" \
-        --network folio-net \
+        --name cicd-repo \
+        --network cicd-repo-net \
         --env-file "$dir_prefix/$root_dir/.tmp/app.env" \
         "cicd-repo:1.2.3"
 }
@@ -244,8 +302,8 @@ teardown() {
     assert_mocks_called_in_order \
         docker pull "ghcr.io/cicd-account/cicd-repo:1.2.3" -- \
         docker run -d \
-            --name "folio" \
-            --network folio-net \
+            --name cicd-repo \
+            --network cicd-repo-net \
             --env-file "$dir_prefix/$root_dir/.tmp/app.env" \
             "ghcr.io/cicd-account/cicd-repo:1.2.3"
 }
@@ -255,7 +313,7 @@ teardown() {
     run deploy --local
     assert_success
     assert_mock_called_once docker run -d \
-        --name "folio" \
+        --name cicd-repo \
         "ghcr.io/cicd-account/cicd-repo:1.2.3"
 }
 
@@ -266,8 +324,61 @@ teardown() {
     run deploy --local
     assert_success
     assert_mock_called_once docker run -d \
-        --name "folio" \
+        --name test-package \
         "ghcr.io/test-account/test-package:1.2.3"
+}
+
+@test "does not deploy local Grafana Alloy container without Loki URL" {
+    unset LOKI_URL
+    run deploy --local
+    assert_success
+    assert_mock_not_called docker run grafana/alloy:latest
+}
+
+@test "deploys local Grafana Alloy container" {
+    run deploy --local
+    assert_success
+    assert_mock_called_once docker run -d \
+        "--name=cicd-repo-alloy" \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$dir_prefix/$root_dir/config.alloy:/etc/alloy/config.alloy" \
+        grafana/alloy:latest \
+        run --server.http.listen-addr=0.0.0.0:12345 etc/alloy/config.alloy
+}
+
+@test "deploys local Grafana Alloy container on Linux" {
+    run deploy --local
+    assert_success
+    assert_mock_called_once docker run -d \
+        "--name=cicd-repo-alloy" \
+        -v /var/run/docker.sock:/var/run/docker.sock
+}
+
+@test "deploys local Grafana Alloy container on MINGW" {
+    uname() { log_mock_call uname "$@"; echo "MINGW64_NT-10.0"; }
+    run deploy --local
+    assert_success
+    assert_mock_not_called docker run -d \
+        "--name=cicd-repo-alloy" \
+        -v /var/run/docker.sock:/var/run/docker.sock
+}
+
+@test "deploys local Grafana Alloy container on MSYS" {
+    uname() { log_mock_call uname "$@"; echo "MSYS_NT-10.0"; }
+    run deploy --local
+    assert_success
+    assert_mock_not_called docker run -d \
+        "--name=cicd-repo-alloy" \
+        -v /var/run/docker.sock:/var/run/docker.sock
+}
+
+@test "deploys local Grafana Alloy container on CYGWIN" {
+    uname() { log_mock_call uname "$@"; echo "CYGWIN_NT-10.0"; }
+    run deploy --local
+    assert_success
+    assert_mock_not_called docker run -d \
+        "--name=cicd-repo-alloy" \
+        -v /var/run/docker.sock:/var/run/docker.sock
 }
 
 @test "smoke tests local deployment" {
@@ -641,7 +752,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates Terraform plan from options" {
@@ -673,7 +787,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/test_key.pub" \
         -var "cf_token=test_token" \
         -var "do_token=test_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates staging Terraform plan" {
@@ -695,7 +812,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates test Terraform plan" {
@@ -717,7 +837,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates environment Terraform plan" {
@@ -739,7 +862,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "creates Terraform plan with custom domain" {
@@ -761,7 +887,10 @@ teardown() {
         -var "ssh_public_key_file=/path/to/public_key.pub" \
         -var "cf_token=cf_token" \
         -var "do_token=do_token" \
-        -var "sentry_dsn=https://example@sentry.io/123456"
+        -var "sentry_dsn=https://example@sentry.io/123456" \
+        -var "loki_url=http://loki:3100/loki/api/v1/push" \
+        -var "loki_username=123456" \
+        -var "loki_password=abcdef"
 }
 
 @test "sets commit status to 'failure' after failing to create Terraform plan" {

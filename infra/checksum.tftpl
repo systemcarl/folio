@@ -21,6 +21,17 @@ if [[ "$caddyfile_check" != "${caddyfile_check}" ]]; then
     echo "actual: $caddyfile_check"
     exit 1
 fi
+if [[ ! -f "/root/config.alloy" ]]; then
+    echo "/root/config.alloy not found"
+    exit 1
+fi
+alloy_check=$(cat "/root/config.alloy" | sha256sum | cut -d ' ' -f1)
+if [[ "$alloy_check" != "${alloy_check}" ]]; then
+    echo "Alloy config mismatch"
+    echo "expected: ${alloy_check}"
+    echo "actual: $alloy_check"
+    exit 1
+fi
 if [[ ! -d "/root/static" ]]; then
     echo "/root/static not found"
     exit 1

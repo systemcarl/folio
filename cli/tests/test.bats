@@ -27,6 +27,7 @@ setup() {
 
     mock load_env
 
+    FOLIO_CICD_REPO="cicd-repo"
     FOLIO_GH_TOKEN="gh_token"
 }
 
@@ -133,7 +134,7 @@ teardown() {
     run test
     assert_success
     assert_mock_called_once docker run -it --rm \
-        --name folio-tests-bats \
+        --name cicd-repo-tests-bats \
         bats/bats:latest \
         cli/tests/
 }
@@ -142,7 +143,7 @@ teardown() {
     run test --cli
     assert_success
     assert_mock_not_called docker run -it --rm \
-        --name folio-tests-bats \
+        --name cicd-repo-tests-bats \
         bats/bats:latest \
         infra/tests/
     assert_mock_not_called terraform --chdir=infra test
@@ -188,7 +189,7 @@ teardown() {
     run test
     assert_success
     assert_mock_called_once docker run -it --rm \
-        --name folio-tests-bats \
+        --name cicd-repo-tests-bats \
         bats/bats:latest \
         infra/tests/
     assert_mock_called_once terraform -chdir=infra test
@@ -198,7 +199,7 @@ teardown() {
     run test --infra
     assert_success
     assert_mock_not_called docker run -it --rm \
-        --name folio-tests-bats \
+        --name cicd-repo-tests-bats \
         bats/bats:latest \
         cli/tests/
     assert_mock_not_called deploy
@@ -279,11 +280,11 @@ teardown() {
     run test --terraform
     assert_success
     assert_mock_not_called docker run -it --rm \
-        --name folio-tests-bats \
+        --name cicd-repo-tests-bats \
         bats/bats:latest \
         cli/tests/
     assert_mock_not_called docker run -it --rm \
-        --name folio-tests-bats \
+        --name cicd-repo-tests-bats \
         bats/bats:latest \
         infra/tests/
 }
@@ -317,11 +318,11 @@ teardown() {
     run test --deploy
     assert_success
     assert_mock_not_called docker run -it --rm \
-        --name folio-tests-bats \
+        --name cicd-repo-tests-bats \
         bats/bats:latest \
         cli/tests/
     assert_mock_not_called docker run -it --rm \
-        --name folio-tests-bats \
+        --name cicd-repo-tests-bats \
         bats/bats:latest \
         infra/tests/
     assert_mock_not_called terraform -chdir=infra test

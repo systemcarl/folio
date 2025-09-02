@@ -153,6 +153,23 @@ variable "sentry_dsn" {
     default = ""
 }
 
+variable "loki_url" {
+    description = "Loki target URL."
+    type = string
+    default = ""
+}
+variable "loki_username" {
+    description = "Loki basic auth username."
+    type = string
+    default = ""
+}
+variable "loki_password" {
+    description = "Loki basic auth password."
+    type = string
+    default = ""
+    sensitive = true
+}
+
 variable "is_test" {
     description = "Whether terraform is currently running a test."
     type = bool

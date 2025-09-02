@@ -60,6 +60,12 @@ scripts:
 - `SENTRY_AUTH_TOKEN`: The *Sentry* authentication token used to upload source
     maps during containerization. This environment variable is not deployed with
     the application.
+- `LOKI_URL`: The URL of the external Loki instance to send logs to, from the
+    deployed application.
+- `LOKI_USERNAME`: The basic auth username for basic authenticating the deployed
+    application with the external Loki instance.
+- `LOKI_PASSWORD`: The basic auth password for basic authenticating the deployed
+    application with the external Loki instance.
 
 ## Validation
 Before building the application, you can validate the application code using

@@ -87,6 +87,9 @@ fingerprint_env() {
     env_string+="SENTRY_ORG=$SENTRY_ORG;"
     env_string+="SENTRY_PROJECT=$SENTRY_PROJECT;"
     env_string+="SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN;"
+    env_string+="LOKI_URL=$LOKI_URL;"
+    env_string+="LOKI_USERNAME=$LOKI_USERNAME;"
+    env_string+="LOKI_PASSWORD=$LOKI_PASSWORD;"
     local hash=$(echo "$env_string" | sha256sum | cut -d ' ' -f 1)
     echo "${hash:0:16}"
 }

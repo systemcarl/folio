@@ -1,0 +1,102 @@
+discovery.docker "containers" {
+    host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "logs_integrations_docker" {
+    targets = discovery.docker.containers.targets
+
+    rule {
+        source_labels = ["__meta_docker_container_name"]
+        regex = "/" + "${app_name}"
+        action = "keep"
+    }
+
+    rule {
+        source_labels = ["__meta_docker_container_name"]
+        regex = "/(.*)"
+        target_label = "service_name"
+    }
+}
+
+loki.source.docker "default" {
+    host = "unix:///var/run/docker.sock"
+    targets = discovery.relabel.logs_integrations_docker.output
+
+    labels = {
+        "level" = 30,
+        "environment" = "${environment}",
+    }
+
+    forward_to = [loki.process.default.receiver]
+}
+
+loki.process "default" {
+    stage.json {
+        expressions = {
+            level = "",
+            type = "",
+        }
+    }
+
+    stage.labels {
+        values = {
+            level = "",
+            type = "",
+        }
+    }
+
+    forward_to = [loki.relabel.map_level_to_text.receiver]
+}
+
+loki.relabel "map_level_to_text" {
+    rule {
+        source_labels = ["level"]
+        target_label = "level"
+        regex = "^(1\\d)$"
+        replacement = "trace"
+    }
+    rule {
+        source_labels = ["level"]
+        target_label = "level"
+        regex = "^(2\\d)$"
+        replacement = "debug"
+    }
+    rule {
+        source_labels = ["level"]
+        target_label = "level"
+        regex = "^(3\\d)$"
+        replacement = "info"
+        action = "replace"
+    }
+    rule {
+        source_labels = ["level"]
+        target_label = "level"
+        regex = "^(4\\d)$"
+        replacement = "warn"
+    }
+    rule {
+        source_labels = ["level"]
+        target_label = "level"
+        regex = "^(5\\d)$"
+        replacement = "error"
+    }
+    rule {
+        source_labels = ["level"]
+        target_label = "level"
+        regex = "^(6\\d)$"
+        replacement = "fatal"
+        action = "replace"
+    }
+
+    forward_to = [loki.write.cloud.receiver]
+}
+
+loki.write "cloud" {
+    endpoint {
+        url = "${loki_url}"
+        basic_auth {
+            username = "${loki_username}"
+            password = "${loki_password}"
+        }
+    }
+}

@@ -179,7 +179,7 @@ test() {
         if [[ -d "$path" ]] || [[ -f "$path" ]]; then
             echo "Running command line interface BATS tests..."
             docker run $interact --rm \
-                --name folio-tests-bats \
+                --name "$FOLIO_CICD_REPO-tests-bats" \
                 -v "$root:/code" \
                 bats/bats:latest \
                 "${filter_args[@]}" \
@@ -201,7 +201,7 @@ test() {
         if [[ -d "$path" ]] || [[ -f "$path" ]]; then
             echo "Running infrastructure BATS tests..."
             docker run $interact --rm \
-                --name folio-tests-bats \
+                --name "$FOLIO_CICD_REPO-tests-bats" \
                 -v "$root:/code" \
                 bats/bats:latest \
                 "${filter_args[@]}" \

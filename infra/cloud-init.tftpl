@@ -78,6 +78,8 @@ while ! $ready; do
         sleep 1 || break; continue
     elif test ! -f /root/Caddyfile; then
         sleep 1 || break; continue
+    elif test ! -f /root/config.alloy; then
+        sleep 1 || break; continue
     elif test ! -f /root/.env; then
         sleep 1 || break; continue
     fi
@@ -92,6 +94,8 @@ cp /root/.env /home/app/.env
 chown app:app /home/app/.env
 cp /root/Caddyfile /home/app/Caddyfile
 chown app:app /home/app/Caddyfile
+cp /root/config.alloy /home/app/config.alloy
+chown app:app /home/app/config.alloy
 cp -r /root/static /home/app/static
 chown -R app:app /home/app/static
 
@@ -107,9 +111,15 @@ su - app -c "docker run -d \
     -v /home/app/static:/srv/static \
     caddy:latest"
 su - app -c "docker run -d \
-    --name folio \
+    --name ${container_name} \
     --network web \
     --env-file /home/app/.env \
     ${app_package}"
+su - app -c "docker run -d \
+    --name alloy \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /home/app/config.alloy:/etc/alloy/config.alloy \
+    grafana/alloy:latest \
+    run --server.http.listen-addr=0.0.0.0:12345 etc/alloy/config.alloy"
 
 echo "Cloud-init script completed successfully."

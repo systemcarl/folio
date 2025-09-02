@@ -1,4 +1,4 @@
-http://folio-caddy {
+http://{$APP_NAME}-caddy {
     root * /srv/static
     file_server
 }
@@ -11,5 +11,5 @@ http://folio-caddy {
         file_server
     }
 
-    reverse_proxy folio:3000
+    reverse_proxy {$APP_NAME}:3000
 }

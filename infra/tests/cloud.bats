@@ -54,6 +54,7 @@ setup() {
     ssh_port="2222"
     ssh_public_key="ssh-rsa abcd123 comment"
     acme_email=""
+    container_name="container"
 
     cloud_init() { source "infra/cloud-init.tftpl"; }
 }
@@ -230,6 +231,32 @@ teardown() {
     assert_mock_not_called su - app
 }
 
+@test "checks Alloy config provisioned before copying" {
+    run cloud_init
+    assert_success
+    assert_mocks_called_in_order \
+        test ! -f /root/config.alloy -- \
+        cp /root/config.alloy /home/app/config.alloy
+}
+
+@test "changes ownership of Alloy config" {
+    run cloud_init
+    assert_success
+    assert_mocks_called_in_order \
+        cp /root/config.alloy /home/app/config.alloy -- \
+        chown app:app /home/app/config.alloy
+}
+
+@test "does not start Alloy if config not provisioned" {
+    test() {
+        log_mock_call test "$@"
+        if [[ " $* " == *" /root/config.alloy "* ]]; then return 0; fi
+    }
+    run cloud_init
+    assert_failure
+    assert_mock_not_called su - app
+}
+
 @test "checks app environment file provisioned before copying" {
     run cloud_init
     assert_success
@@ -278,8 +305,20 @@ teardown() {
     assert_mocks_called_in_order \
         su - app -c "docker network create web" -- \
         su - app -c "docker run -d \
-            --name folio \
+            --name container \
             --network web \
             --env-file /home/app/.env \
             app-package"
+}
+
+@test "starts Alloy container" {
+    run cloud_init
+    assert_success
+    assert_mock_called_once \
+        su - app -c "docker run -d \
+            --name alloy \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v /home/app/config.alloy:/etc/alloy/config.alloy \
+            grafana/alloy:latest \
+            run --server.http.listen-addr=0.0.0.0:12345 etc/alloy/config.alloy"
 }

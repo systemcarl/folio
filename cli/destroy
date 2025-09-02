@@ -49,7 +49,10 @@ destroy() {
             -var "ssh_public_key_file=$FOLIO_PUBLIC_KEY_FILE" \
             -var "cf_token=$FOLIO_CF_TOKEN" \
             -var "do_token=$FOLIO_DO_TOKEN" \
-            -var "sentry_dsn=$SENTRY_DSN"
+            -var "sentry_dsn=$SENTRY_DSN" \
+            -var "loki_url=$LOKI_URL" \
+            -var "loki_username=$LOKI_USERNAME" \
+            -var "loki_password=$LOKI_PASSWORD"
         if [[ $? -ne 0 ]]; then
             echo "Failed to create Terraform destroy plan."
             return 1
@@ -76,14 +79,14 @@ destroy() {
         return 0
     fi
 
-    if [[ -n "$(docker ps -q -f name=folio-caddy)" ]]; then
+    if [[ -n "$(docker ps -q -f "name=$FOLIO_CICD_REPO-caddy")" ]]; then
         echo "Stopping and removing the Caddy container..."
-        docker stop folio-caddy > /dev/null
+        docker stop "$FOLIO_CICD_REPO-caddy" > /dev/null
         if [[ $? -ne 0 ]]; then
             echo "Failed to stop the application container."
             return 1
         fi
-        docker rm folio-caddy > /dev/null
+        docker rm "$FOLIO_CICD_REPO-caddy" > /dev/null
         if [[ $? -ne 0 ]]; then
             echo "Failed to stop and remove the Caddy container."
             return 1
@@ -93,14 +96,14 @@ destroy() {
         echo "No running Caddy container found."
     fi
 
-    if [[ -n "$(docker ps -q -f name=folio)" ]]; then
+    if [[ -n "$(docker ps -q -f name="$FOLIO_CICD_REPO")" ]]; then
         echo "Stopping and removing the application container..."
-        docker stop folio > /dev/null
+        docker stop "$FOLIO_CICD_REPO" > /dev/null
         if [[ $? -ne 0 ]]; then
             echo "Failed to stop the application container."
             return 1
         fi
-        docker rm folio > /dev/null
+        docker rm "$FOLIO_CICD_REPO" > /dev/null
         if [[ $? -ne 0 ]]; then
             echo "Failed to stop and remove the application container."
             return 1
@@ -110,9 +113,26 @@ destroy() {
         echo "No running application container found."
     fi
 
-    if [[ -n "$(docker network ls -q -f name=folio-net)" ]]; then
+    if [[ -n "$(docker ps -q -f name="$FOLIO_CICD_REPO-alloy")" ]]; then
+        echo "Stopping and removing the Alloy container..."
+        docker stop "$FOLIO_CICD_REPO-alloy" > /dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to stop the Alloy container."
+            return 1
+        fi
+        docker rm "$FOLIO_CICD_REPO-alloy" > /dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to stop and remove the Alloy container."
+            return 1
+        fi
+        echo "Alloy container stopped and removed successfully."
+    else
+        echo "No running Alloy container found."
+    fi
+
+    if [[ -n "$(docker network ls -q -f "name=$FOLIO_CICD_REPO-net")" ]]; then
         echo "Removing Docker network..."
-        docker network rm folio-net > /dev/null
+        docker network rm "$FOLIO_CICD_REPO-net" > /dev/null
         if [[ $? -ne 0 ]]; then
             echo "Failed to remove Docker network."
             return 1
