@@ -1,0 +1,37 @@
+name: Stage Application
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        type: string
+        required: false
+        default: 'staging'
+      additional_args:
+        description: 'Additional arguments for publishing'
+        type: string
+        required: false
+        default: ''
+    outputs:
+      result:
+        description: 'Output from deployment command'
+        value: ${{ jobs.stage.outputs.result }}
+      node-version:
+        description: 'Node.js version used in deployment'
+        value: ${{ jobs.stage.outputs.node-version }}
+      terraform-version:
+        description: 'Terraform version used in deployment'
+        value: ${{ jobs.stage.outputs.terraform-version }}
+
+jobs:
+  stage:
+    name: Stage
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      environment: ${{ inputs.environment || 'staging' }}
+      additional_args: ${{ inputs.additional_args || '--set-status' }}
+    secrets: inherit

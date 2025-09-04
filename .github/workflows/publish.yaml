@@ -1,0 +1,37 @@
+name: Publish Application
+
+on:
+  push:
+    branches:
+      - main
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        type: string
+        required: false
+        default: 'production'
+      additional_args:
+        description: 'Additional arguments for publishing'
+        type: string
+        required: false
+        default: ''
+    outputs:
+      result:
+        description: 'Output from deployment command'
+        value: ${{ jobs.publish.outputs.result }}
+      node-version:
+        description: 'Node.js version used in deployment'
+        value: ${{ jobs.publish.outputs.node-version }}
+      terraform-version:
+        description: 'Terraform version used in deployment'
+        value: ${{ jobs.publish.outputs.terraform-version }}
+
+jobs:
+  publish:
+    name: Publish
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      environment: ${{ inputs.environment || 'production' }}
+      additional_args: ${{ inputs.additional_args || '--set-status' }}
+    secrets: inherit

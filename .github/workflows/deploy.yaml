@@ -1,0 +1,116 @@
+name: Deploy Application
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        type: string
+        required: true
+      additional_args:
+        description: 'Additional arguments for deployment'
+        type: string
+        required: false
+        default: ''
+    outputs:
+      result:
+        description: 'Output from deployment command'
+        value: ${{ jobs.deploy.outputs.result }}
+      node-version:
+        description: 'Node.js version used in deployment'
+        value: ${{ jobs.deploy.outputs.node-version }}
+      terraform-version:
+        description: 'Terraform version used in deployment'
+        value: ${{ jobs.deploy.outputs.terraform-version}}
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        type: environment
+        required: true
+      additional_args:
+        description: 'Additional arguments for deployment'
+        type: string
+        required: false
+        default: '--set-status'
+
+jobs:
+  deploy:
+    name: "Deploy '${{ inputs.environment }}'"
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      FOLIO_APP_DOMAIN: ${{ vars.FOLIO_APP_DOMAIN }}
+      FOLIO_CF_DNS_ZONE: ${{ secrets.FOLIO_CF_DNS_ZONE }}
+      FOLIO_SSH_PORT: ${{ secrets.FOLIO_SSH_PORT }}
+      FOLIO_ACME_EMAIL: ${{ secrets.FOLIO_ACME_EMAIL }}
+      FOLIO_SSH_KEY_ID: ${{ secrets.FOLIO_SSH_KEY_ID }}
+      FOLIO_SSH_PRIVATE_KEY: ${{ secrets.FOLIO_SSH_PRIVATE_KEY }}
+      FOLIO_SSH_PUBLIC_KEY: ${{ secrets.FOLIO_SSH_PUBLIC_KEY }}
+      FOLIO_GCS_CREDENTIALS: ${{ secrets.FOLIO_GCS_CREDENTIALS }}
+      FOLIO_CF_TOKEN: ${{ secrets.FOLIO_CF_TOKEN }}
+      FOLIO_DO_TOKEN: ${{ secrets.FOLIO_DO_TOKEN }}
+      FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+      FOLIO_GHPR_TOKEN: ${{ secrets.FOLIO_GHPR_TOKEN }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      LOKI_URL: ${{ secrets.LOKI_URL }}
+      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+
+    outputs:
+      result: ${{ steps.deploy.outputs.result }}
+      node-version: ${{ steps.node.outputs.node-version }}
+      terraform-version: ${{ steps.terraform.outputs.terraform-version}}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: >-
+            ${{ secrets.FOLIO_GH_TOKEN || secrets.REPO_TOKEN
+              || secrets.GITHUB_TOKEN }}
+      - name: Set up Node.js
+        id: node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Set Up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12.2"
+      - name: Check Terraform Version
+        id: terraform
+        run: |
+          echo "terraform-version=v$(terraform version -json \
+            | jq -r '.terraform_version')" >> $GITHUB_OUTPUT
+
+      - name: Deploy Application
+        id: deploy
+        run: |
+          chmod +x ./deploy
+          tmpfile=$(mktemp)
+          mkdir -p "${{ github.workspace }}/.temp"
+          echo "$FOLIO_SSH_PRIVATE_KEY" > "${{ github.workspace }}/.temp/key"
+          echo "$FOLIO_SSH_PUBLIC_KEY" > "${{ github.workspace }}/.temp/key.pub"
+          ./deploy \
+            --environment "${{ inputs.environment }}" \
+            --private-key "${{ github.workspace }}/.temp/key" \
+            --public-key "${{ github.workspace }}/.temp/key.pub" \
+            ${{ inputs.additional_args }} \
+            --approve \
+            --ci \
+              | tee "$tmpfile"
+          if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+            echo "Deployment failed"
+            exit 1
+          fi
+          {
+            echo "result<<EOF"
+            cat "$tmpfile"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT

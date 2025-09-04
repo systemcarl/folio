@@ -1,0 +1,89 @@
+name: Validate Application
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference to validate (branch or tag)'
+        type: string
+        required: false
+        default: ''
+      environment:
+        description: 'Validation environment'
+        type: string
+        required: false
+        default: 'test'
+      additional_args:
+        description: 'Additional arguments for validation'
+        type: string
+        required: false
+        default: ''
+    outputs:
+      result:
+        description: 'Output from validation command'
+        value: ${{ jobs.validate.outputs.result }}
+      ref:
+        description: 'Targeted branch for validation'
+        value: ${{ jobs.validate.outputs.ref }}
+      node-version:
+        description: 'Node.js version used in validation'
+        value: ${{ jobs.validate.outputs.node-version }}
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git reference to validate (branch or tag)'
+        type: string
+        required: true
+      additional_args:
+        description: 'Additional arguments for validation'
+        type: string
+        required: false
+        default: '--set-status'
+
+jobs:
+  validate:
+    name: Validate ${{ inputs.ref }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'test' }}
+    env:
+      FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+
+    outputs:
+      result: ${{ steps.validate.outputs.result }}
+      ref: ${{ steps.checkout.outputs.ref }}
+      node-version: ${{ steps.node.outputs.node-version }}
+
+    steps:
+      - name: Checkout Code
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: >-
+            ${{ secrets.FOLIO_GH_TOKEN || secrets.REPO_TOKEN
+              || secrets.GITHUB_TOKEN }}
+      - name: Set up Node.js
+        id: node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Application
+        id: validate
+        run: |
+          chmod +x ./validate
+          tmpfile=$(mktemp)
+          ./validate \
+            '${{ inputs.ref }}' \
+            ${{ inputs.additional_args || '--set-status' }} \
+              | tee "$tmpfile"
+          if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+            echo "Validation failed"
+            exit 1
+          fi
+          {
+            echo "result<<EOF"
+            cat "$tmpfile"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT

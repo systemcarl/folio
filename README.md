@@ -280,10 +280,86 @@ validate --set-status
 test --set-status
 ```
 
-If the status is already set, the command will not run again with
-`--set-status`. To force a command to run set, the `--force` option can be used.
+This is used by default during (automation)[#automation] to reduce the
+likelihood of redundant pipeline runs. To force a command to run, even if the
+commit status is already set, the `--force` option can be used.
 ```bash
 deploy --set-status --force
 validate --set-status --force
 test --set-status --force
 ```
+
+## Automation
+While local testing and deployment is more reliable, common tasks can be
+automated via *GitHub Actions*. The application can be validated, deployed, and
+destroyed using the provided workflows. Additionally, the CI/CD pipeline
+includes testing workflows that checks the integrity of the *GitHub Actions*
+environment and configuration, and test all CI/CD pipeline scripts.
+
+The workflows wrap their corresponding CLI commands:
+- "Deploy Application" — `deploy`,
+- "Teardown Application" — `destroy`,
+- "Validate Application" — `validate`,
+- "Test Application" — `test`.
+
+Additionally, the "Verify CI/CD Configuration" workflow checks the *GitHub
+Actions* environment configuration and performs a dry run integration test of
+all other workflows.
+
+These workflows can be dispatched manually. The "Deploy Application" workflow
+is automatically triggered on pushes to the `main` or `staging` branches. The
+"Test Application" and "Verify CI/CD Configuration" workflows are triggered on
+any update to repository files, not including submodule updates.
+
+### Environment Configuration
+The *GitHub Actions* workflows expect the following environments to be
+configured:
+- `production`,
+- `staging`,
+- `test`,
+- `verification`.
+
+All environments except `verification` are used to deploy the application, and
+require all the necessary environment variables to be set as variables:
+- `FOLIO_APP_DOMAIN`;
+
+or as secrets:
+- `FOLIO_CF_DNS_ZONE`,
+- `FOLIO_SSH_PORT`,
+- `FOLIO_ACME_EMAIL`,
+- `FOLIO_SSH_KEY_ID`,
+- `FOLIO_PRIVATE_KEY_FILE`,
+- `FOLIO_PUBLIC_KEY_FILE`,
+- `FOLIO_GCS_CREDENTIALS`,
+- `FOLIO_CF_TOKEN`,
+- `FOLIO_DO_TOKEN`,
+- `FOLIO_GH_TOKEN`,
+- `FOLIO_GHPR_TOKEN`,
+- `SENTRY_DSN`,
+- `SENTRY_ORG`,
+- `SENTRY_PROJECT`,
+- `SENTRY_AUTH_TOKEN`,
+- `LOKI_URL`,
+- `LOKI_USERNAME`,
+- `LOKI_PASSWORD`.
+
+For test safety, the `verification` environment must not have any authentication
+secrets set:
+- `FOLIO_GCS_CREDENTIALS`,
+- `FOLIO_CF_TOKEN`,
+- `FOLIO_DO_TOKEN`,
+- `FOLIO_GH_TOKEN`,
+- `FOLIO_GHPR_TOKEN`,
+- `SENTRY_AUTH_TOKEN`,
+- `LOKI_PASSWORD`.
+
+If the application submodule repository is private, an authentication token with
+read access to the repository must be set as a secret:
+- `REPO_TOKEN`.
+
+### Environment Verification
+It is recommended that the *GitHub Actions* environment is verified via the
+"Verify CI/CD Configuration" workflow before running any other workflows.
+Dispatching the "Verify CI/CD Configuration" workflow with the `check` option of
+`environment` will ensure that the environment variables and secrets are set
+correctly.

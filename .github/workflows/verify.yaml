@@ -1,0 +1,664 @@
+name: Verify CI/CD Configuration
+
+on:
+  push:
+    paths-ignore:
+      - 'app'
+  workflow_dispatch:
+    inputs:
+      check:
+        description: 'Specify configuration to verify'
+        type: choice
+        options:
+          - 'all'
+          - 'environment'
+          - 'workflows'
+        required: false
+        default: 'all'
+
+jobs:
+  verify-environments:
+    name: Verify Environment Variables
+    if: >-
+      ${{ !inputs.check
+        || inputs.check == 'all' || inputs.check == 'environment' }}
+    strategy:
+      matrix:
+        environment: [production, staging, test]
+    runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
+    env:
+      FOLIO_APP_DOMAIN: ${{ vars.FOLIO_APP_DOMAIN }}
+      FOLIO_CF_DNS_ZONE: ${{ secrets.FOLIO_CF_DNS_ZONE }}
+      FOLIO_SSH_PORT: ${{ secrets.FOLIO_SSH_PORT }}
+      FOLIO_ACME_EMAIL: ${{ secrets.FOLIO_ACME_EMAIL }}
+      FOLIO_SSH_KEY_ID: ${{ secrets.FOLIO_SSH_KEY_ID }}
+      FOLIO_SSH_PRIVATE_KEY: ${{ secrets.FOLIO_SSH_PRIVATE_KEY }}
+      FOLIO_SSH_PUBLIC_KEY: ${{ secrets.FOLIO_SSH_PUBLIC_KEY }}
+      FOLIO_GCS_CREDENTIALS: ${{ secrets.FOLIO_GCS_CREDENTIALS }}
+      FOLIO_CF_TOKEN: ${{ secrets.FOLIO_CF_TOKEN }}
+      FOLIO_DO_TOKEN: ${{ secrets.FOLIO_DO_TOKEN }}
+      FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+      FOLIO_GHPR_TOKEN: ${{ secrets.FOLIO_GHPR_TOKEN }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      LOKI_URL: ${{ secrets.LOKI_URL }}
+      LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+
+    steps:
+      - name: Verify Environment Configuration
+        run: |
+          check_failed=false
+          check() {
+            if eval "$1"; then echo "[x] $2";
+            else echo "[ ] $2"; check_failed=true; fi
+          }
+
+          echo "Environment: '${{ matrix.environment }}'"
+          echo "::group::Variables"
+          check '[[ \
+            "${{ vars.FOLIO_APP_DOMAIN }}" \
+              =~ ^([a-zA-Z0-9][-a-zA-Z0-9]*\.)+[a-zA-Z]{2,}$ \
+          ]]' "'FOLIO_APP_DOMAIN' is a valid domain"
+          echo "::endgroup::"
+
+          echo "::group::Secrets"
+          check '[[ -n "$FOLIO_CF_DNS_ZONE" ]]' "'FOLIO_CF_DNS_ZONE' is set"
+          check '[[ "$FOLIO_SSH_PORT" =~ ^[0-9]+$ ]]' \
+            "'FOLIO_SSH_PORT' is a valid port number"
+          check '[[ \
+          "$FOLIO_ACME_EMAIL" \
+              =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ \
+          ]]' "'FOLIO_ACME_EMAIL' is a valid email address"
+          check '[[ "$FOLIO_SSH_KEY_ID" =~ ^[0-9]+$ ]]' \
+            "'FOLIO_SSH_KEY_ID' is a valid SSH key ID"
+          check '[[ \
+            "$FOLIO_SSH_PRIVATE_KEY" \
+              =~ ^-+BEGIN\ (OPENSSH|RSA|ED25519)\ PRIVATE\ KEY \
+          ]]' "'FOLIO_SSH_PRIVATE_KEY' is a valid SSH private key"
+          check '[[ \
+            "$FOLIO_SSH_PUBLIC_KEY" \
+              =~ ^ssh-(rsa|ed25519)[[:space:]][A-Za-z0-9+/=]+ \
+          ]]' "'FOLIO_SSH_PUBLIC_KEY' is a valid SSH public key"
+          check '[[ -n "$FOLIO_GCS_CREDENTIALS" ]]' \
+            "'FOLIO_GCS_CREDENTIALS' is set"
+          check '[[ -n "$FOLIO_CF_TOKEN" ]]' "'FOLIO_CF_TOKEN' is set"
+          check '[[ -n "$FOLIO_DO_TOKEN" ]]' "'FOLIO_DO_TOKEN' is set"
+          check '[[ -n "$FOLIO_GH_TOKEN" ]]' "'FOLIO_GH_TOKEN' is set"
+          check '[[ -n "$FOLIO_GHPR_TOKEN" ]]' "'FOLIO_GHPR_TOKEN' is set"
+          check '[[ -n "$SENTRY_DSN" ]]' "'SENTRY_DSN' is set"
+          check '[[ -n "$SENTRY_ORG" ]]' "'SENTRY_ORG' is set"
+          check '[[ -n "$SENTRY_PROJECT" ]]' "'SENTRY_PROJECT' is set"
+          check '[[ -n "$SENTRY_AUTH_TOKEN" ]]' "'SENTRY_AUTH_TOKEN' is set"
+          check '[[ -n "$LOKI_URL" ]]' "'LOKI_URL' is set"
+          check '[[ -n "$LOKI_USERNAME" ]]' "'LOKI_USERNAME' is set"
+          check '[[ -n "$LOKI_PASSWORD" ]]' "'LOKI_PASSWORD' is set"
+          echo "::endgroup::"
+
+          if [[ "$check_failed" == "true" ]]; then
+            echo "Environment verification failed."
+            exit 1
+          else
+            echo "Environment verification passed."
+          fi
+
+  check-configuration:
+    name: Check Verification Configuration
+    if: >-
+      ${{ !inputs.check
+        || inputs.check == 'all' || inputs.check == 'workflows' }}
+    runs-on: ubuntu-latest
+    environment: verification
+    env:
+      FOLIO_GCS_CREDENTIALS: ${{ secrets.FOLIO_GCS_CREDENTIALS }}
+      FOLIO_CF_TOKEN: ${{ secrets.FOLIO_CF_TOKEN }}
+      FOLIO_DO_TOKEN: ${{ secrets.FOLIO_DO_TOKEN }}
+      FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+      FOLIO_GHPR_TOKEN: ${{ secrets.FOLIO_GHPR_TOKEN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+      REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+
+    steps:
+      - name: Check Verification Environment
+        run: |
+          check_failed=false
+          check() {
+            if eval "$1"; then echo "[x] $2";
+            else echo "[ ] $2"; check_failed=true; fi
+          }
+
+          echo "::group::Secrets"
+          check '[[ -z "$FOLIO_GCS_CREDENTIALS" ]]' \
+            "'FOLIO_GCS_CREDENTIALS' not set in 'verification' environment"
+          check '[[ -z "$FOLIO_CF_TOKEN" ]]' \
+            "'FOLIO_CF_TOKEN' not set in 'verification' environment"
+          check '[[ -z "$FOLIO_DO_TOKEN" ]]' \
+            "'FOLIO_DO_TOKEN' not set in 'verification' environment"
+          check '[[ -z "$FOLIO_GH_TOKEN" ]]' \
+            "'FOLIO_GH_TOKEN' not set in 'verification' environment"
+          check '[[ -z "$FOLIO_GHPR_TOKEN" ]]' \
+            "'FOLIO_GHPR_TOKEN' not set in 'verification' environment"
+          check '[[ -z "$SENTRY_AUTH_TOKEN" ]]' \
+            "'SENTRY_AUTH_TOKEN' not set in 'verification' environment"
+          check '[[ -z "$LOKI_PASSWORD" ]]' \
+            "'LOKI_PASSWORD' not set in 'verification' environment"
+          check '[[ -n "$REPO_TOKEN" ]]' \
+            "'REPO_TOKEN' is set in 'verification' environment"
+          echo "::endgroup::"
+
+          if [[ "$check_failed" == "true" ]]; then
+            echo "Verification environment checks failed."
+            exit 1
+          else
+            echo "Verification environment checks passed."
+          fi
+
+  run-publish:
+    name: Test Run Publishing Workflow
+    needs:
+      - check-configuration
+    if: ${{ needs.check-configuration.result == 'success' }}
+    uses: ./.github/workflows/publish.yaml
+    with:
+      environment: verification
+      additional_args: '--local --dry-run --verbose'
+    secrets: inherit
+
+  run-stage:
+    name: Test Run Staging Workflow
+    needs:
+      - check-configuration
+    if: ${{ needs.check-configuration.result == 'success' }}
+    uses: ./.github/workflows/stage.yaml
+    with:
+      environment: verification
+      additional_args: '--local --dry-run --verbose'
+    secrets: inherit
+
+  run-deploy:
+    name: Test Run Deployment Workflow
+    needs:
+      - check-configuration
+    if: ${{ needs.check-configuration.result == 'success' }}
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      environment: verification
+      additional_args: '--local --dry-run --verbose'
+    secrets: inherit
+
+  run-destroy:
+    name: Test Run Cleanup Workflow
+    needs:
+      - check-configuration
+    if: ${{ needs.check-configuration.result == 'success' }}
+    uses: ./.github/workflows/destroy.yaml
+    with:
+      environment: verification
+      additional_args: '--local --dry-run --verbose'
+    secrets: inherit
+
+  run-validate:
+    name: Test Run Validation Workflow
+    needs:
+      - check-configuration
+    if: ${{ needs.check-configuration.result == 'success' }}
+    uses: ./.github/workflows/validate.yaml
+    with:
+      ref: main
+      environment: verification
+      additional_args: '--dry-run --verbose'
+    secrets: inherit
+
+  run-test:
+    name: Test Run Testing Workflow
+    needs:
+      - check-configuration
+    if: ${{ needs.check-configuration.result == 'success' }}
+    uses: ./.github/workflows/test.yaml
+    with:
+      environment: verification
+      additional_args: '--dry-run --verbose'
+    secrets: inherit
+
+  check-workflows:
+    name: Check Workflows
+    needs:
+      - check-configuration
+      - run-publish
+      - run-stage
+      - run-deploy
+      - run-destroy
+      - run-validate
+      - run-test
+    if: ${{ needs.check-configuration.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: verification
+
+    steps:
+      - name: Checkout Repository
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: >-
+            ${{ secrets.FOLIO_GH_TOKEN || secrets.REPO_TOKEN
+              || secrets.GITHUB_TOKEN }}
+
+      - name: Check Publishing Workflow
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        env:
+          FOLIO_APP_DOMAIN: ${{ vars.FOLIO_APP_DOMAIN }}
+          FOLIO_CF_DNS_ZONE: ${{ secrets.FOLIO_CF_DNS_ZONE }}
+          FOLIO_SSH_PORT: ${{ secrets.FOLIO_SSH_PORT }}
+          FOLIO_ACME_EMAIL: ${{ secrets.FOLIO_ACME_EMAIL }}
+          FOLIO_SSH_KEY_ID: ${{ secrets.FOLIO_SSH_KEY_ID }}
+          FOLIO_SSH_PRIVATE_KEY: ${{ secrets.FOLIO_SSH_PRIVATE_KEY }}
+          FOLIO_SSH_PUBLIC_KEY: ${{ secrets.FOLIO_SSH_PUBLIC_KEY }}
+          FOLIO_GCS_CREDENTIALS: ${{ secrets.FOLIO_GCS_CREDENTIALS }}
+          FOLIO_CF_TOKEN: ${{ secrets.FOLIO_CF_TOKEN }}
+          FOLIO_DO_TOKEN: ${{ secrets.FOLIO_DO_TOKEN }}
+          FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+          FOLIO_GHPR_TOKEN: ${{ secrets.FOLIO_GHPR_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          set +e
+          check_failed=false
+          check() {
+            if eval "$1"; then echo "[x] $2";
+            else echo "[ ] $2"; check_failed=true; fi
+          }
+
+          chmod +x ./deploy
+          result=$(./deploy \
+            --environment verification \
+            --private-key "${{ github.workspace }}/.temp/key" \
+            --public-key "${{ github.workspace }}/.temp/key.pub" \
+            --local \
+            --approve \
+            --dry-run \
+            --verbose)
+          if [[ $? -ne 0 ]]; then
+            echo "$result"
+            echo "Environment dry run failed"
+            exit 1
+          fi
+          expected_fingerprint=$(echo "$result" | grep -oP '^\(\K.*(?=\)$)')
+          if [[ $? -ne 0 ]] || [[ -z "$expected_fingerprint" ]]; then
+            echo "Failed to extract fingerprint from deploy output"
+            exit 1
+          fi
+
+          check '[[ \
+            "${{ needs.run-publish.outputs.node-version }}" \
+              == "v22."* \
+          ]]' "Publishing workflow uses Node.js 22"
+          check '[[ \
+            "${{ needs.run-publish.outputs.terraform-version }}" \
+              == "v1.12.2" \
+          ]]' "Publishing workflow uses Terraform 1.12.2"
+          check '[[ \
+            "${{ needs.run-publish.outputs.result }}" \
+              =~ "Deploying application." \
+          ]]' "Publishing calls publish script with additional arguments"
+          check '[[ \
+            "${{ needs.run-publish.outputs.result }}" \
+              =~ "$expected_fingerprint" \
+          ]]' "Publishing workflow uses correct environment variables"
+
+          if [[ $check_failed == "true" ]]; then
+            echo "Publishing workflow checks failed."
+            exit 1
+          else
+            echo "Publishing workflow checks passed."
+          fi
+
+      - name: Check Staging Workflow
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        env:
+          FOLIO_APP_DOMAIN: ${{ vars.FOLIO_APP_DOMAIN }}
+          FOLIO_CF_DNS_ZONE: ${{ secrets.FOLIO_CF_DNS_ZONE }}
+          FOLIO_SSH_PORT: ${{ secrets.FOLIO_SSH_PORT }}
+          FOLIO_ACME_EMAIL: ${{ secrets.FOLIO_ACME_EMAIL }}
+          FOLIO_SSH_KEY_ID: ${{ secrets.FOLIO_SSH_KEY_ID }}
+          FOLIO_SSH_PRIVATE_KEY: ${{ secrets.FOLIO_SSH_PRIVATE_KEY }}
+          FOLIO_SSH_PUBLIC_KEY: ${{ secrets.FOLIO_SSH_PUBLIC_KEY }}
+          FOLIO_GCS_CREDENTIALS: ${{ secrets.FOLIO_GCS_CREDENTIALS }}
+          FOLIO_CF_TOKEN: ${{ secrets.FOLIO_CF_TOKEN }}
+          FOLIO_DO_TOKEN: ${{ secrets.FOLIO_DO_TOKEN }}
+          FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+          FOLIO_GHPR_TOKEN: ${{ secrets.FOLIO_GHPR_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          set +e
+          check_failed=false
+          check() {
+            if eval "$1"; then echo "[x] $2";
+            else echo "[ ] $2"; check_failed=true; fi
+          }
+
+          chmod +x ./deploy
+          result=$(./deploy \
+            --environment verification \
+            --private-key "${{ github.workspace }}/.temp/key" \
+            --public-key "${{ github.workspace }}/.temp/key.pub" \
+            --local \
+            --approve \
+            --dry-run \
+            --verbose)
+          if [[ $? -ne 0 ]]; then
+            echo "$result"
+            echo "Environment dry run failed"
+            exit 1
+          fi
+          expected_fingerprint=$(echo "$result" | grep -oP '^\(\K.*(?=\)$)')
+          if [[ $? -ne 0 ]] || [[ -z "$expected_fingerprint" ]]; then
+            echo "Failed to extract fingerprint from deploy output"
+            exit 1
+          fi
+
+          check '[[ \
+            "${{ needs.run-stage.outputs.node-version }}" \
+              == "v22."* \
+          ]]' "Staging workflow uses Node.js 22"
+          check '[[ \
+            "${{ needs.run-stage.outputs.terraform-version }}" \
+              == "v1.12.2" \
+          ]]' "Staging workflow uses Terraform 1.12.2"
+          check '[[ \
+            "${{ needs.run-stage.outputs.result }}" \
+              =~ "Deploying application." \
+          ]]' "Staging calls stage script with additional arguments"
+          check '[[ \
+            "${{ needs.run-stage.outputs.result }}" \
+              =~ "$expected_fingerprint" \
+          ]]' "Staging workflow uses correct environment variables"
+
+          if [[ "$check_failed" == "true" ]]; then
+            echo "Staging workflow checks failed."
+            exit 1
+          else
+            echo "Staging workflow checks passed."
+          fi
+
+      - name: Check Deployment Workflow
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        env:
+          FOLIO_APP_DOMAIN: ${{ vars.FOLIO_APP_DOMAIN }}
+          FOLIO_CF_DNS_ZONE: ${{ secrets.FOLIO_CF_DNS_ZONE }}
+          FOLIO_SSH_PORT: ${{ secrets.FOLIO_SSH_PORT }}
+          FOLIO_ACME_EMAIL: ${{ secrets.FOLIO_ACME_EMAIL }}
+          FOLIO_SSH_KEY_ID: ${{ secrets.FOLIO_SSH_KEY_ID }}
+          FOLIO_SSH_PRIVATE_KEY: ${{ secrets.FOLIO_SSH_PRIVATE_KEY }}
+          FOLIO_SSH_PUBLIC_KEY: ${{ secrets.FOLIO_SSH_PUBLIC_KEY }}
+          FOLIO_GCS_CREDENTIALS: ${{ secrets.FOLIO_GCS_CREDENTIALS }}
+          FOLIO_CF_TOKEN: ${{ secrets.FOLIO_CF_TOKEN }}
+          FOLIO_DO_TOKEN: ${{ secrets.FOLIO_DO_TOKEN }}
+          FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+          FOLIO_GHPR_TOKEN: ${{ secrets.FOLIO_GHPR_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          set +e
+          check_failed=false
+          check() {
+            if eval "$1"; then echo "[x] $2";
+            else echo "[ ] $2"; check_failed=true; fi
+          }
+
+          chmod +x ./deploy
+          result=$(./deploy \
+            --environment verification \
+            --private-key "${{ github.workspace }}/.temp/key" \
+            --public-key "${{ github.workspace }}/.temp/key.pub" \
+            --local \
+            --approve \
+            --dry-run \
+            --verbose)
+          if [[ $? -ne 0 ]]; then
+            echo "$result"
+            echo "Environment dry run failed"
+            exit 1
+          fi
+          expected_fingerprint=$(echo "$result" | grep -oP '^\(\K.*(?=\)$)')
+          if [[ $? -ne 0 ]] || [[ -z "$expected_fingerprint" ]]; then
+            echo "Failed to extract fingerprint from deploy output"
+            exit 1
+          fi
+
+          check '[[ \
+            "${{ needs.run-deploy.outputs.node-version }}" \
+              == "v22."* \
+          ]]'  "Deployment workflow uses Node.js 22"
+          check '[[ \
+            "${{ needs.run-deploy.outputs.terraform-version }}" \
+              == "v1.12.2" \
+          ]]' "Deployment workflow uses Terraform 1.12.2"
+          check '[[ \
+            "${{ needs.run-deploy.outputs.result }}" \
+              =~ "Deploying application." \
+          ]]' "Deployment calls deploy script with additional arguments"
+          check '[[ \
+            "${{ needs.run-deploy.outputs.result }}" \
+              =~ "$expected_fingerprint" \
+          ]]' "Deployment workflow uses correct environment variables"
+
+          if [[ "$check_failed" == "true" ]]; then
+            echo "Deployment workflow checks failed."
+            exit 1
+          else
+            echo "Deployment workflow checks passed."
+          fi
+
+      - name: Check Cleanup Workflow
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        env:
+          FOLIO_APP_DOMAIN: ${{ vars.FOLIO_APP_DOMAIN }}
+          FOLIO_CF_DNS_ZONE: ${{ secrets.FOLIO_CF_DNS_ZONE }}
+          FOLIO_SSH_PORT: ${{ secrets.FOLIO_SSH_PORT }}
+          FOLIO_ACME_EMAIL: ${{ secrets.FOLIO_ACME_EMAIL }}
+          FOLIO_SSH_KEY_ID: ${{ secrets.FOLIO_SSH_KEY_ID }}
+          FOLIO_SSH_PRIVATE_KEY: ${{ secrets.FOLIO_SSH_PRIVATE_KEY }}
+          FOLIO_SSH_PUBLIC_KEY: ${{ secrets.FOLIO_SSH_PUBLIC_KEY }}
+          FOLIO_GCS_CREDENTIALS: ${{ secrets.FOLIO_GCS_CREDENTIALS }}
+          FOLIO_CF_TOKEN: ${{ secrets.FOLIO_CF_TOKEN }}
+          FOLIO_DO_TOKEN: ${{ secrets.FOLIO_DO_TOKEN }}
+          FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+          FOLIO_GHPR_TOKEN: ${{ secrets.FOLIO_GHPR_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          set +e
+          check_failed=false
+          check() {
+            if eval "$1"; then echo "[x] $2";
+            else echo "[ ] $2"; check_failed=true; fi
+          }
+
+          chmod +x ./destroy
+          result=$(./destroy \
+            --environment verification \
+            --private-key "${{ github.workspace }}/.temp/key" \
+            --public-key "${{ github.workspace }}/.temp/key.pub" \
+            --local \
+            --approve \
+            --dry-run \
+            --verbose)
+          if [[ $? -ne 0 ]]; then
+            echo "$result"
+            echo "Environment dry run failed"
+            exit 1
+          fi
+          expected_fingerprint=$(echo "$result" | grep -oP '^\(\K.*(?=\)$)')
+          if [[ $? -ne 0 ]] || [[ -z "$expected_fingerprint" ]]; then
+            echo "Failed to extract fingerprint from destroy output"
+            exit 1
+          fi
+
+          check '[[ \
+            "${{ needs.run-destroy.outputs.node-version }}" \
+              == "v22."*
+          ]]' "Cleanup workflow uses Node.js 22"
+          check '[[ \
+            "${{ needs.run-destroy.outputs.terraform-version }}" \
+              == "v1.12.2" \
+          ]]' "Cleanup workflow uses Terraform 1.12.2"
+          check '[[ \
+            "${{ needs.run-destroy.outputs.result }}" \
+              =~ "Tearing down application." \
+          ]]' "Cleanup calls destroy script with additional arguments"
+          check '[[ \
+            "${{ needs.run-destroy.outputs.result }}" \
+              =~ "$expected_fingerprint" \
+          ]]' "Cleanup workflow uses correct environment variables"
+
+          if [[ "$check_failed" == "true" ]]; then
+            echo "Cleanup workflow checks failed."
+            exit 1
+          else
+            echo "Cleanup workflow checks passed."
+          fi
+
+      - name: Check Validation Workflow
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        env:
+          FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+        run: |
+          set +e
+          check_failed=false
+          check() {
+            if eval "$1"; then echo "[x] $2";
+            else echo "[ ] $2"; check_failed=true; fi
+          }
+
+          chmod +x ./validate
+          result=$(./validate \
+            --dry-run \
+            --verbose)
+          if [[ $? -ne 0 ]]; then
+            echo "$result"
+            echo "Environment dry run failed"
+            exit 1
+          fi
+          expected_fingerprint=$(echo "$result" | grep -oP '^\(\K.*(?=\)$)')
+          if [[ $? -ne 0 ]] || [[ -z "$expected_fingerprint" ]]; then
+            echo "Failed to extract fingerprint from validate output"
+            exit 1
+          fi
+
+          check '[[ \
+            "${{ needs.run-validate.outputs.node-version }}" \
+              == "v22."* \
+          ]]' "Validation workflow uses Node.js 22"
+          check '[[ \
+            "${{ needs.run-validate.outputs.result }}" \
+              =~ "Validating application at: main" \
+          ]]' "Validation calls validate script with additional arguments"
+          check '[[ \
+            "${{ needs.run-validate.outputs.result }}" \
+              =~ "$expected_fingerprint" \
+          ]]' "Validation workflow uses correct environment variables"
+
+          if [[ "$check_failed" == "true" ]]; then
+            echo "Validation workflow checks failed."
+            exit 1
+          else
+            echo "Validation workflow checks passed."
+          fi
+
+      - name: Check Testing Workflow
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        env:
+          FOLIO_APP_DOMAIN: ${{ vars.FOLIO_APP_DOMAIN }}
+          FOLIO_CF_DNS_ZONE: ${{ secrets.FOLIO_CF_DNS_ZONE }}
+          FOLIO_SSH_PORT: ${{ secrets.FOLIO_SSH_PORT }}
+          FOLIO_ACME_EMAIL: ${{ secrets.FOLIO_ACME_EMAIL }}
+          FOLIO_SSH_KEY_ID: ${{ secrets.FOLIO_SSH_KEY_ID }}
+          FOLIO_SSH_PRIVATE_KEY: ${{ secrets.FOLIO_SSH_PRIVATE_KEY }}
+          FOLIO_SSH_PUBLIC_KEY: ${{ secrets.FOLIO_SSH_PUBLIC_KEY }}
+          FOLIO_GCS_CREDENTIALS: ${{ secrets.FOLIO_GCS_CREDENTIALS }}
+          FOLIO_CF_TOKEN: ${{ secrets.FOLIO_CF_TOKEN }}
+          FOLIO_DO_TOKEN: ${{ secrets.FOLIO_DO_TOKEN }}
+          FOLIO_GH_TOKEN: ${{ secrets.FOLIO_GH_TOKEN }}
+          FOLIO_GHPR_TOKEN: ${{ secrets.FOLIO_GHPR_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+        run: |
+          set +e
+          check_failed=false
+          check() {
+            if eval "$1"; then echo "[x] $2";
+            else echo "[ ] $2"; check_failed=true; fi
+          }
+
+          chmod +x ./test
+          result=$(./test \
+            --private-key "${{ github.workspace }}/.temp/key" \
+            --public-key "${{ github.workspace }}/.temp/key.pub" \
+            --dry-run \
+            --verbose)
+          if [[ $? -ne 0 ]]; then
+            echo "$result"
+            echo "Environment dry run failed"
+            exit 1
+          fi
+          expected_fingerprint=$(echo "$result" | grep -oP '^\(\K.*(?=\)$)')
+          if [[ $? -ne 0 ]] || [[ -z "$expected_fingerprint" ]]; then
+            echo "Failed to extract fingerprint from test output"
+            exit 1
+          fi
+
+          check '[[ \
+            "${{ needs.run-test.outputs.node-version}}" \
+              == "v22."* \
+          ]]' "Testing workflow uses Node.js 22"
+          check '[[ \
+            "${{ needs.run-test.outputs.terraform-version}}" \
+              == "v1.12.2" \
+          ]]' "Testing workflow uses Terraform 1.12.2"
+          check '[[ \
+            "${{ needs.run-test.outputs.result }}" \
+              =~ "Running tests." \
+          ]]' "Testing calls test script with additional arguments"
+          check '[[ \
+            "${{ needs.run-test.outputs.result }}" \
+              =~ "$expected_fingerprint" \
+          ]]' "Testing workflow uses correct environment variables"
+
+          if [[ "$check_failed" == "true" ]]; then
+            echo "Testing workflow checks failed."
+            exit 1
+          else
+            echo "Testing workflow checks passed."
+          fi
