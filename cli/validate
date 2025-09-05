@@ -136,8 +136,14 @@ validate() {
 
     npm install
     if [[ $? -ne 0 ]]; then
-        echo "Failed to install dependencies."
-        update_status "failure" "failed to install dependencies"
+        echo "Failed to install npm 1dependencies."
+        update_status "failure" "failed to install npm dependencies"
+        return 1
+    fi
+    npx playwright install --with-deps
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to install playwright dependencies."
+        update_status "failure" "failed to install playwright dependencies"
         return 1
     fi
     echo "Dependencies installed successfully."

@@ -11,6 +11,7 @@ setup() {
     setup_mocks
 
     mock npm
+    mock npx
     mock git
 
     status() { log_mock_call status "$@"; echo "none"; }
@@ -188,15 +189,29 @@ teardown() {
     assert_mock_called_in_dir app npm install
 }
 
-@test "sets commit status to 'failure' after failing to install dependencies" {
+@test "sets 'failure' commit status after failing to install npm dependencies" {
     npm() { log_mock_call npm "$@"; return 1; }
     run validate --set-status branch
     assert_failure
     assert_mock_called_once status set branch failure \
-        --description "Validation failed to install dependencies."
+        --description "Validation failed to install npm dependencies."
 }
 
-@test "restores previous app version if install fails" {
+@test "installs playwright dependencies" {
+    run validate
+    assert_success
+    assert_mock_called_in_dir app npx playwright install --with-deps
+}
+
+@test "sets 'failure' commit status after failing to install playwright" {
+    npx() { log_mock_call npx "$@"; return 1; }
+    run validate --set-status branch
+    assert_failure
+    assert_mock_called_once status set branch failure \
+        --description "Validation failed to install playwright dependencies."
+}
+
+@test "restores previous app version if npm install fails" {
     set_mock_state is_current_ref "false"
     npm() { log_mock_call npm "$@"; return 1; }
     run validate branch
@@ -207,11 +222,23 @@ teardown() {
         git checkout -f -
 }
 
+@test "restores previous app version if playwright install fails" {
+    set_mock_state is_current_ref "false"
+    npx() { log_mock_call npx "$@"; return 1; }
+    run validate branch
+    assert_failure
+    assert_mock_called_in_dir app git checkout -f -
+    assert_mocks_called_in_order \
+        npx playwright install --with-deps -- \
+        git checkout -f -
+}
+
 @test "installs npm dependencies before testing" {
     run validate
     assert_success
     assert_mocks_called_in_order \
         npm install -- \
+        npx playwright install --with-deps -- \
         npm run test
 }
 

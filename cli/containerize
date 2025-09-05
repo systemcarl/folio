@@ -80,7 +80,12 @@ containerize() {
 
     npm install
     if [[ $? -ne 0 ]]; then
-        echo "Failed to install dependencies."
+        echo "Failed to install npm dependencies."
+        return 1
+    fi
+    npx playwright install --with-deps
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to install playwright dependencies."
         return 1
     fi
     echo "Dependencies installed successfully."

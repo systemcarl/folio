@@ -10,6 +10,7 @@ setup() {
     setup_mocks
 
     mock npm
+    mock npx
 
     docker() {
         if [[ "$1" == "login" ]]; then
@@ -166,6 +167,7 @@ teardown() {
     assert_success
     assert_mocks_called_in_order \
         npm install -- \
+        npx playwright install --with-deps -- \
         npm run test
 }
 
