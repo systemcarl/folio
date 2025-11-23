@@ -131,11 +131,15 @@ run "renders_caddyfile_external_virtual_host" {
             "[^}]*root \\* /srv/static",
             "[^}]*header \\{",
             "[^}]*Cache-Control ",
-                "\"public, max-age=60, stale-while-revalidate=30\"",
+                "\"no-cache\"",
             "[^}]*X-Robots-Tag \"noindex, nofollow\"",
             "[^}]*\\}",
             "[^}]*@has_file file {path}",
-            "[^}]*handle @has_file \\{[^}]*file_server[^}]*\\}",
+            "[^}]*handle @has_file \\{",
+            "[^}]*header Cache-Control ",
+                "\"public, max-age=60, stale-while-revalidate=30\"",
+            "[^}]*file_server",
+            "[^}]*\\}",
             "[^}]*reverse_proxy app-package:3000",
             "[^}]*\\}"
         ]), local.caddyfile))
