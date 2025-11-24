@@ -12,7 +12,7 @@ ${hostname} {
     root * /srv/static
 
     header {
-        Cache-Control "public, max-age=60, stale-while-revalidate=30"
+        Cache-Control "no-cache"
 %{ if environment != "production" ~}
         X-Robots-Tag "noindex, nofollow"
 %{ endif ~}
@@ -20,6 +20,7 @@ ${hostname} {
 
     @has_file file {path}
     handle @has_file {
+        header Cache-Control "public, max-age=60, stale-while-revalidate=30"
         file_server
     }
 
