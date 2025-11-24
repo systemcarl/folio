@@ -16,6 +16,14 @@ variables {
     loki_password = "abcdef"
 }
 
+run "renders_env_file_resource_ttl" {
+    command = plan
+    assert {
+        condition = strcontains(local.env_file, "RESOURCE_CACHE_TTL=600000")
+        error_message = "Environment file does not define RESOURCE_CACHE_TTL."
+    }
+}
+
 run "renders_env_file_base_url" {
     command = plan
     assert {
