@@ -38,7 +38,6 @@ normalize() {
     if [[ "$escape" == "true" ]]; then
         if [[ "$n" =~ \\ ]]; then n="${n//\\/\\\\}"; fi
         if [[ "$n" =~ \" ]]; then n="${n//\\\"/\"}"; n="${n//\"/\\\"}"; fi
-        if [[ "$n" =~ + ]]; then n="${n//+/\\+}"; fi
     fi
     if [[ "$n" =~ " " ]]; then printf '"%s"' "$n"
     elif [[ -n "$n" ]]; then printf '%s' "$n"

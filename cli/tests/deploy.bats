@@ -40,7 +40,18 @@ setup() {
     resolve_path() { log_mock_call resolve_path "$@"; echo "$dir_prefix/$1"; }
 
     mock make_env
-    mock load_env
+
+    load_env() {
+        while [[ "$*" != "" ]]; do
+            case "$1" in
+                --environment ) LAST_ENVIRONMENT="$2"; shift;;
+                * ) ;;
+            esac
+            shift
+        done
+        set -- "${args[@]}"
+        log_mock_call load_env "$@" --last-environment "$LAST_ENVIRONMENT"
+    }
 
     ENVIRONMENT="production"
     FOLIO_CICD_ACCOUNT="cicd-account"
@@ -83,9 +94,31 @@ teardown() {
 }
 
 @test "loads specified environment" {
-    run deploy --local --environment test
+    setup_remote_env
+    run deploy <<< "y" --environment test
     assert_success
-    assert_mock_called_once load_env --environment test
+    assert_mock_called_once load_env --last-environment test
+}
+
+@test "loads local environment" {
+    setup_remote_env
+    run deploy --local
+    assert_success
+    assert_mock_called_once load_env --last-environment local
+}
+
+@test "loads test environment" {
+    setup_remote_env
+    run deploy <<< "y" --test
+    assert_success
+    assert_mock_called_once load_env --last-environment test
+}
+
+@test "loads staging environment" {
+    setup_remote_env
+    run deploy <<< "y" --staging
+    assert_success
+    assert_mock_called_once load_env --last-environment staging
 }
 
 @test "prints environment fingerprint when verbose" {

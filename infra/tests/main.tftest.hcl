@@ -16,6 +16,14 @@ variables {
     loki_password = "abcdef"
 }
 
+run "renders_env_file_resource_ttl" {
+    command = plan
+    assert {
+        condition = strcontains(local.env_file, "RESOURCE_CACHE_TTL=600000")
+        error_message = "Environment file does not define RESOURCE_CACHE_TTL."
+    }
+}
+
 run "renders_env_file_base_url" {
     command = plan
     assert {
@@ -131,11 +139,15 @@ run "renders_caddyfile_external_virtual_host" {
             "[^}]*root \\* /srv/static",
             "[^}]*header \\{",
             "[^}]*Cache-Control ",
-                "\"public, max-age=60, stale-while-revalidate=30\"",
+                "\"no-cache\"",
             "[^}]*X-Robots-Tag \"noindex, nofollow\"",
             "[^}]*\\}",
             "[^}]*@has_file file {path}",
-            "[^}]*handle @has_file \\{[^}]*file_server[^}]*\\}",
+            "[^}]*handle @has_file \\{",
+            "[^}]*header Cache-Control ",
+                "\"public, max-age=60, stale-while-revalidate=30\"",
+            "[^}]*file_server",
+            "[^}]*\\}",
             "[^}]*reverse_proxy app-package:3000",
             "[^}]*\\}"
         ]), local.caddyfile))

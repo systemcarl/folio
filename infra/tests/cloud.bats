@@ -291,7 +291,7 @@ teardown() {
         su - app -c "docker run -d \
             --name caddy \
             --network web \
-            --restart always \
+            --restart unless-stopped \
             -p 80:80 \
             -p 443:443 \
             -v /home/app/Caddyfile:/etc/caddy/Caddyfile \
@@ -307,6 +307,7 @@ teardown() {
         su - app -c "docker run -d \
             --name container \
             --network web \
+            --restart unless-stopped \
             --env-file /home/app/.env \
             app-package"
 }
@@ -317,6 +318,7 @@ teardown() {
     assert_mock_called_once \
         su - app -c "docker run -d \
             --name alloy \
+            --restart unless-stopped \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v /home/app/config.alloy:/etc/alloy/config.alloy \
             grafana/alloy:latest \
